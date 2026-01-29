@@ -3,39 +3,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção</title>
+    <title>Ronda de Manutenção - Local</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-4">
     <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        <h1 class="text-2xl font-bold text-blue-800 mb-4">Ronda de Equipamentos</h1>
+        <h1 class="text-2xl font-bold text-blue-800 mb-4">Ronda Hospitalar</h1>
         
-        <input type="text" id="busca" placeholder="🔍 Buscar por TAG ou SN..." 
-               class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500">
+        <div id="setup" class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
+            <p class="text-sm text-blue-800 mb-2 font-bold">1º Selecione o arquivo banco_ronda.json:</p>
+            <input type="file" id="arquivoJson" accept=".json" class="text-xs">
+        </div>
 
-        <select id="filtroSetor" class="w-full p-3 border rounded-lg mb-6 bg-blue-50">
-            <option value="">Selecione o Setor para Ronda...</option>
-        </select>
+        <div id="appBody" class="hidden">
+            <input type="text" id="busca" placeholder="🔍 Buscar por TAG ou SN..." 
+                   class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500">
 
-        <div id="listaEquipamentos" class="space-y-4">
-            </div>
+            <select id="filtroSetor" class="w-full p-3 border rounded-lg mb-6 bg-white shadow-sm border-blue-200">
+                <option value="">Selecione o Setor para Ronda...</option>
+            </select>
 
-        <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 text-white p-4 rounded-lg font-bold shadow-lg">
-            📥 Finalizar e Baixar Ronda
-        </button>
+            <div id="listaEquipamentos" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
+                </div>
+
+            <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 text-white p-4 rounded-lg font-bold shadow-lg active:bg-green-700">
+                📥 Finalizar e Baixar Ronda (CSV)
+            </button>
+        </div>
     </div>
 
     <script>
         let bancoDados = [];
         let rondaRealizada = [];
 
-        // 1. Carregar o arquivo JSON gerado no Colab
-        fetch('banco_ronda.json')
-            .then(response => response.json())
-            .then(data => {
-                bancoDados = data;
+        // 1. Escutar o carregamento do arquivo local
+        document.getElementById('arquivoJson').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                bancoDados = JSON.parse(event.target.result);
+                document.getElementById('setup').classList.add('hidden');
+                document.getElementById('appBody').classList.remove('hidden');
                 popularSetores();
-            });
+            };
+            reader.readAsText(e.target.files[0]);
+        });
 
         function popularSetores() {
             const select = document.getElementById('filtroSetor');
@@ -54,47 +65,48 @@
             
             itens.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm";
+                div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm border border-gray-200";
                 div.innerHTML = `
                     <p class="font-bold text-gray-800">${item.nome}</p>
-                    <p class="text-sm text-gray-600">TAG: ${item.tag} | SN: ${item.sn}</p>
-                    <p class="text-xs text-blue-600 mb-2">Setor Original: ${item.setor}</p>
-                    <input type="text" placeholder="Localização/Leito..." 
+                    <p class="text-xs text-gray-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
+                    <p class="text-[10px] text-blue-600 mb-2">ORIGEM: ${item.setor}</p>
+                    <input type="text" placeholder="Qual o leito?" 
                            onchange="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
-                           class="w-full p-2 border rounded text-sm focus:bg-yellow-50">
+                           class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400">
                 `;
                 container.appendChild(div);
             });
         }
 
         function salvarLocalizacao(tag, setorOrig, leito) {
-            // Se o item já existe na ronda, atualiza, senão adiciona
             const index = rondaRealizada.findIndex(r => r.TAG === tag);
+            const setorAtual = document.getElementById('filtroSetor').value || "Busca Geral";
+            
             if (index > -1) {
                 rondaRealizada[index].LEITO = leito;
+                rondaRealizada[index].SETOR_ENCONTRADO = setorAtual;
             } else {
                 rondaRealizada.push({
                     TAG: tag,
                     SETOR_ORIGINAL: setorOrig,
-                    SETOR_ENCONTRADO: document.getElementById('filtroSetor').value || "Busca Global",
+                    SETOR_ENCONTRADO: setorAtual,
                     LEITO: leito,
                     DATA: new Date().toLocaleDateString()
                 });
             }
         }
 
-        // Filtro por Setor
         document.getElementById('filtroSetor').addEventListener('change', (e) => {
             const filtrados = bancoDados.filter(item => item.setor === e.target.value);
             renderizarLista(filtrados);
         });
 
-        // Busca Global
         document.getElementById('busca').addEventListener('input', (e) => {
             const termo = e.target.value.toUpperCase();
             if(termo.length > 2) {
                 const filtrados = bancoDados.filter(item => 
-                    item.tag.toUpperCase().includes(termo) || item.sn.toUpperCase().includes(termo)
+                    item.tag.toUpperCase().includes(termo) || 
+                    item.sn.toUpperCase().includes(termo)
                 );
                 renderizarLista(filtrados);
             }
@@ -103,20 +115,17 @@
         function exportarDados() {
             if (rondaRealizada.length === 0) return alert("Nenhum dado registrado!");
             
-            let csv = "TAG,SETOR_ORIGINAL,SETOR_ENCONTRADO,LEITO,DATA\n";
+            let csv = "\uFEFFTAG,SETOR_ORIGINAL,SETOR_ENCONTRADO,LEITO,DATA\n";
             rondaRealizada.forEach(row => {
-                csv += `${row.TAG},${row.SETOR_ORIGINAL},${row.SETOR_ENCONTRADO},${row.LEITO},${row.DATA}\n`;
+                csv += `"${row.TAG}","${row.SETOR_ORIGINAL}","${row.SETOR_ENCONTRADO}","${row.LEITO}","${row.DATA}"\n`;
             });
 
-            const blob = new Blob([csv], { type: 'text/csv' });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.setAttribute('hidden', '');
             a.setAttribute('href', url);
-            a.setAttribute('download', `ronda_${new Date().getTime()}.csv`);
-            document.body.appendChild(a);
+            a.setAttribute('download', `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`);
             a.click();
-            document.body.removeChild(a);
         }
     </script>
 </body>
