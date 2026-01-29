@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ronda de Manutenção</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-4">
+    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
+        <h1 class="text-2xl font-bold text-blue-800 mb-4">Ronda de Equipamentos</h1>
+        
+        <input type="text" id="busca" placeholder="🔍 Buscar por TAG ou SN..." 
+               class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500">
+
+        <select id="filtroSetor" class="w-full p-3 border rounded-lg mb-6 bg-blue-50">
+            <option value="">Selecione o Setor para Ronda...</option>
+        </select>
+
+        <div id="listaEquipamentos" class="space-y-4">
+            </div>
+
+        <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 text-white p-4 rounded-lg font-bold shadow-lg">
+            📥 Finalizar e Baixar Ronda
+        </button>
+    </div>
+
+    <script>
+        let bancoDados = [];
+        let rondaRealizada = [];
+
+        // 1. Carregar o arquivo JSON gerado no Colab
+        fetch('banco_ronda.json')
+            .then(response => response.json())
+            .then(data => {
+                bancoDados = data;
+                popularSetores();
+            });
+
+        function popularSetores() {
+            const select = document.getElementById('filtroSetor');
+            const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
+            setores.forEach(setor => {
+                const opt = document.createElement('option');
+                opt.value = setor;
+                opt.textContent = setor;
+                select.appendChild(opt);
+            });
+        }
+
+        function renderizarLista(itens) {
+            const container = document.getElementById('listaEquipamentos');
+            container.innerHTML = '';
+            
+            itens.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm";
+                div.innerHTML = `
+                    <p class="font-bold text-gray-800">${item.nome}</p>
+                    <p class="text-sm text-gray-600">TAG: ${item.tag} | SN: ${item.sn}</p>
+                    <p class="text-xs text-blue-600 mb-2">Setor Original: ${item.setor}</p>
+                    <input type="text" placeholder="Localização/Leito..." 
+                           onchange="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
+                           class="w-full p-2 border rounded text-sm focus:bg-yellow-50">
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function salvarLocalizacao(tag, setorOrig, leito) {
+            // Se o item já existe na ronda, atualiza, senão adiciona
+            const index = rondaRealizada.findIndex(r => r.TAG === tag);
+            if (index > -1) {
+                rondaRealizada[index].LEITO = leito;
+            } else {
+                rondaRealizada.push({
+                    TAG: tag,
+                    SETOR_ORIGINAL: setorOrig,
+                    SETOR_ENCONTRADO: document.getElementById('filtroSetor').value || "Busca Global",
+                    LEITO: leito,
+                    DATA: new Date().toLocaleDateString()
+                });
+            }
+        }
+
+        // Filtro por Setor
+        document.getElementById('filtroSetor').addEventListener('change', (e) => {
+            const filtrados = bancoDados.filter(item => item.setor === e.target.value);
+            renderizarLista(filtrados);
+        });
+
+        // Busca Global
+        document.getElementById('busca').addEventListener('input', (e) => {
+            const termo = e.target.value.toUpperCase();
+            if(termo.length > 2) {
+                const filtrados = bancoDados.filter(item => 
+                    item.tag.toUpperCase().includes(termo) || item.sn.toUpperCase().includes(termo)
+                );
+                renderizarLista(filtrados);
+            }
+        });
+
+        function exportarDados() {
+            if (rondaRealizada.length === 0) return alert("Nenhum dado registrado!");
+            
+            let csv = "TAG,SETOR_ORIGINAL,SETOR_ENCONTRADO,LEITO,DATA\n";
+            rondaRealizada.forEach(row => {
+                csv += `${row.TAG},${row.SETOR_ORIGINAL},${row.SETOR_ENCONTRADO},${row.LEITO},${row.DATA}\n`;
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.setAttribute('hidden', '');
+            a.setAttribute('href', url);
+            a.setAttribute('download', `ronda_${new Date().getTime()}.csv`);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+    </script>
+</body>
+</html>
