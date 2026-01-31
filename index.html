@@ -62,21 +62,26 @@
         function renderizarLista(itens) {
             const container = document.getElementById('listaEquipamentos');
             container.innerHTML = '';
-            
+    
             itens.forEach(item => {
-                // Recupera o valor da memória se já foi preenchido
                 const valorGravado = memoriaRonda[item.tag] ? memoriaRonda[item.tag].LEITO : "";
-                
+        
+                // Define a cor da etiqueta de status
+                const corStatus = item.status === "ATIVO" ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-700";
+        
                 const div = document.createElement('div');
                 div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm border border-gray-200";
                 div.innerHTML = `
-                    <p class="font-bold text-gray-800">${item.nome}</p>
+                    <div class="flex justify-between items-start mb-1">
+                        <p class="font-bold text-gray-800 leading-tight">${item.nome}</p>
+                        <span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${corStatus}">${item.status}</span>
+                    </div>
                     <p class="text-xs text-gray-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
                     <p class="text-[10px] text-blue-600 mb-2">SETOR ORIGINAL: ${item.setor}</p>
                     <input type="text" placeholder="Qual o leito?" 
-                           value="${valorGravado}"
-                           oninput="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
-                           class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400">
+                        value="${valorGravado}"
+                        oninput="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
+                        class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400">
                 `;
                 container.appendChild(div);
             });
