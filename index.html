@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Local</title>
+    <title>Ronda de Manutenção - Memória Ativa</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-4">
@@ -11,7 +11,7 @@
         <h1 class="text-2xl font-bold text-blue-800 mb-4">Ronda Hospitalar</h1>
         
         <div id="setup" class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
-            <p class="text-sm text-blue-800 mb-2 font-bold">1º Selecione o arquivo banco_ronda.json:</p>
+            <p class="text-sm text-blue-800 mb-2 font-bold">1º Selecione o banco_ronda.json:</p>
             <input type="file" id="arquivoJson" accept=".json" class="text-xs">
         </div>
 
@@ -20,23 +20,23 @@
                    class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500">
 
             <select id="filtroSetor" class="w-full p-3 border rounded-lg mb-6 bg-white shadow-sm border-blue-200">
-                <option value="">Selecione o Setor para Ronda...</option>
+                <option value="">Selecione o Setor...</option>
             </select>
 
-            <div id="listaEquipamentos" class="space-y-4 max-h-[500px] overflow-y-auto pr-2">
-                </div>
+            <div id="contador" class="text-xs text-right text-green-600 font-bold mb-2">Itens anotados: 0</div>
+
+            <div id="listaEquipamentos" class="space-y-4 max-h-[500px] overflow-y-auto pr-2"></div>
 
             <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 text-white p-4 rounded-lg font-bold shadow-lg active:bg-green-700">
-                📥 Finalizar e Baixar Ronda (CSV)
+                📥 Finalizar e Baixar Lista Completa
             </button>
         </div>
     </div>
 
     <script>
         let bancoDados = [];
-        let rondaRealizada = [];
+        let memoriaRonda = {}; // Agora usamos um objeto para busca rápida por TAG
 
-        // 1. Escutar o carregamento do arquivo local
         document.getElementById('arquivoJson').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -64,14 +64,18 @@
             container.innerHTML = '';
             
             itens.forEach(item => {
+                // Recupera o valor da memória se já foi preenchido
+                const valorGravado = memoriaRonda[item.tag] ? memoriaRonda[item.tag].LEITO : "";
+                
                 const div = document.createElement('div');
                 div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm border border-gray-200";
                 div.innerHTML = `
                     <p class="font-bold text-gray-800">${item.nome}</p>
                     <p class="text-xs text-gray-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
-                    <p class="text-[10px] text-blue-600 mb-2">ORIGEM: ${item.setor}</p>
+                    <p class="text-[10px] text-blue-600 mb-2">SETOR ORIGINAL: ${item.setor}</p>
                     <input type="text" placeholder="Qual o leito?" 
-                           onchange="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
+                           value="${valorGravado}"
+                           oninput="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
                            class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400">
                 `;
                 container.appendChild(div);
@@ -79,21 +83,21 @@
         }
 
         function salvarLocalizacao(tag, setorOrig, leito) {
-            const index = rondaRealizada.findIndex(r => r.TAG === tag);
-            const setorAtual = document.getElementById('filtroSetor').value || "Busca Geral";
+            const setorAtual = document.getElementById('filtroSetor').value || "Busca Global";
             
-            if (index > -1) {
-                rondaRealizada[index].LEITO = leito;
-                rondaRealizada[index].SETOR_ENCONTRADO = setorAtual;
+            if (leito.trim() === "") {
+                delete memoriaRonda[tag];
             } else {
-                rondaRealizada.push({
+                memoriaRonda[tag] = {
                     TAG: tag,
                     SETOR_ORIGINAL: setorOrig,
                     SETOR_ENCONTRADO: setorAtual,
                     LEITO: leito,
                     DATA: new Date().toLocaleDateString()
-                });
+                };
             }
+            // Atualiza o contador na tela
+            document.getElementById('contador').textContent = `Itens anotados: ${Object.keys(memoriaRonda).length}`;
         }
 
         document.getElementById('filtroSetor').addEventListener('change', (e) => {
@@ -109,14 +113,19 @@
                     item.sn.toUpperCase().includes(termo)
                 );
                 renderizarLista(filtrados);
+            } else if (termo.length === 0) {
+                // Se limpar a busca e houver setor selecionado, volta para o setor
+                const setorSel = document.getElementById('filtroSetor').value;
+                if(setorSel) renderizarLista(bancoDados.filter(i => i.setor === setorSel));
             }
         });
 
         function exportarDados() {
-            if (rondaRealizada.length === 0) return alert("Nenhum dado registrado!");
+            const listaParaExportar = Object.values(memoriaRonda);
+            if (listaParaExportar.length === 0) return alert("Nenhum dado registrado!");
             
             let csv = "\uFEFFTAG,SETOR_ORIGINAL,SETOR_ENCONTRADO,LEITO,DATA\n";
-            rondaRealizada.forEach(row => {
+            listaParaExportar.forEach(row => {
                 csv += `"${row.TAG}","${row.SETOR_ORIGINAL}","${row.SETOR_ENCONTRADO}","${row.LEITO}","${row.DATA}"\n`;
             });
 
@@ -124,7 +133,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`);
+            a.setAttribute('download', `ronda_completa_${new Date().toISOString().slice(0,10)}.csv`);
             a.click();
         }
     </script>
