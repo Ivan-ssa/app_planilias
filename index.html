@@ -3,47 +3,94 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Memória Ativa</title>
+    <title>Ronda de Manutenção - Sistema de Gestão</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-4">
+<body class="bg-gray-100 p-2 sm:p-4">
     <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        <h1 class="text-2xl font-bold text-blue-800 mb-4">Ronda Hospitalar</h1>
+        <h1 class="text-2xl font-bold text-blue-800 mb-2">Ronda Hospitalar</h1>
+        <p class="text-xs text-gray-500 mb-6 italic">Sistema de Localização e Inventário</p>
         
         <div id="setup" class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
-            <p class="text-sm text-blue-800 mb-2 font-bold">1º Selecione o banco_ronda.json:</p>
-            <input type="file" id="arquivoJson" accept=".json" class="text-xs">
+            <p class="text-sm text-blue-800 mb-2 font-bold">1º Banco de Dados (JSON):</p>
+            <input type="file" id="arquivoJson" accept=".json" class="text-xs mb-4 w-full">
+            
+            <p class="text-sm text-green-800 mb-2 font-bold">2º Continuar Ronda? (Opcional - CSV):</p>
+            <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full">
+            <p class="text-[10px] text-gray-500 mt-2">* Carregue o CSV do dia anterior para continuar de onde parou.</p>
         </div>
 
         <div id="appBody" class="hidden">
-            <input type="text" id="busca" placeholder="🔍 Buscar por TAG ou SN..." 
-                   class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500">
+            <div class="sticky top-0 bg-white pt-2 pb-4 z-10 border-b border-gray-100">
+                <input type="text" id="busca" placeholder="🔍 Buscar por TAG ou SN..." 
+                       class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none">
 
-            <select id="filtroSetor" class="w-full p-3 border rounded-lg mb-6 bg-white shadow-sm border-blue-200">
-                <option value="">Selecione o Setor...</option>
-            </select>
+                <select id="filtroSetor" class="w-full p-3 border rounded-lg bg-white shadow-sm border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none">
+                    <option value="">Selecione o Setor para Ronda...</option>
+                </select>
 
-            <div id="contador" class="text-xs text-right text-green-600 font-bold mb-2">Itens anotados: 0</div>
+                <div class="flex justify-between items-center mt-4">
+                    <span id="contador" class="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded">Itens anotados: 0</span>
+                    <button onclick="window.location.reload()" class="text-[10px] text-red-500 font-bold uppercase underline">Limpar App</button>
+                </div>
+            </div>
 
-            <div id="listaEquipamentos" class="space-y-4 max-h-[500px] overflow-y-auto pr-2"></div>
+            <div id="listaEquipamentos" class="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
+                </div>
 
-            <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 text-white p-4 rounded-lg font-bold shadow-lg active:bg-green-700">
-                📥 Finalizar e Baixar Lista Completa
+            <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg font-bold shadow-lg transition-colors active:scale-95">
+                📥 Finalizar e Baixar Ronda (CSV)
             </button>
         </div>
     </div>
 
     <script>
         let bancoDados = [];
-        let memoriaRonda = {}; // Agora usamos um objeto para busca rápida por TAG
+        let memoriaRonda = {}; 
 
+        // --- CARREGAMENTO DO BANCO JSON ---
         document.getElementById('arquivoJson').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
-                bancoDados = JSON.parse(event.target.result);
-                document.getElementById('setup').classList.add('hidden');
-                document.getElementById('appBody').classList.remove('hidden');
-                popularSetores();
+                try {
+                    bancoDados = JSON.parse(event.target.result);
+                    document.getElementById('setup').classList.add('hidden');
+                    document.getElementById('appBody').classList.remove('hidden');
+                    popularSetores();
+                } catch (err) {
+                    alert("Erro ao ler o arquivo JSON. Verifique se o formato está correto.");
+                }
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        // --- CARREGAMENTO DO PROGRESSO ANTERIOR (CSV) ---
+        document.getElementById('arquivoCsvProgresso').addEventListener('change', function(e) {
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const linhas = event.target.result.split('\n');
+                let restaurados = 0;
+                
+                for (let i = 1; i < linhas.length; i++) {
+                    if (!linhas[i].trim()) continue;
+                    
+                    // Limpa aspas e separa por vírgula
+                    const col = linhas[i].replace(/"/g, '').split(',');
+                    
+                    if (col.length >= 4) {
+                        const tag = col[0];
+                        memoriaRonda[tag] = {
+                            TAG: tag,
+                            SETOR_ORIGINAL: col[1],
+                            SETOR_ENCONTRADO: col[2],
+                            LEITO: col[3],
+                            DATA: col[4] || new Date().toLocaleDateString()
+                        };
+                        restaurados++;
+                    }
+                }
+                atualizarContador();
+                alert(`${restaurados} itens restaurados da sessão anterior!`);
             };
             reader.readAsText(e.target.files[0]);
         });
@@ -52,36 +99,36 @@
             const select = document.getElementById('filtroSetor');
             const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
             setores.forEach(setor => {
-                const opt = document.createElement('option');
-                opt.value = setor;
-                opt.textContent = setor;
-                select.appendChild(opt);
+                if(setor && setor !== "nan") {
+                    const opt = document.createElement('option');
+                    opt.value = setor;
+                    opt.textContent = setor;
+                    select.appendChild(opt);
+                }
             });
         }
 
         function renderizarLista(itens) {
             const container = document.getElementById('listaEquipamentos');
             container.innerHTML = '';
-    
+            
             itens.forEach(item => {
                 const valorGravado = memoriaRonda[item.tag] ? memoriaRonda[item.tag].LEITO : "";
-        
-                // Define a cor da etiqueta de status
                 const corStatus = item.status === "ATIVO" ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-700";
-        
+                
                 const div = document.createElement('div');
                 div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm border border-gray-200";
                 div.innerHTML = `
                     <div class="flex justify-between items-start mb-1">
-                        <p class="font-bold text-gray-800 leading-tight">${item.nome}</p>
+                        <p class="font-bold text-gray-800 leading-tight text-sm">${item.nome}</p>
                         <span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${corStatus}">${item.status}</span>
                     </div>
-                    <p class="text-xs text-gray-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
-                    <p class="text-[10px] text-blue-600 mb-2">SETOR ORIGINAL: ${item.setor}</p>
-                    <input type="text" placeholder="Qual o leito?" 
-                        value="${valorGravado}"
-                        oninput="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
-                        class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400">
+                    <p class="text-[10px] text-gray-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
+                    <p class="text-[9px] text-blue-600 mb-2">CADASTRO: ${item.setor}</p>
+                    <input type="text" placeholder="Localização/Leito..." 
+                           value="${valorGravado}"
+                           oninput="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
+                           class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400 shadow-inner">
                 `;
                 container.appendChild(div);
             });
@@ -101,13 +148,17 @@
                     DATA: new Date().toLocaleDateString()
                 };
             }
-            // Atualiza o contador na tela
+            atualizarContador();
+        }
+
+        function atualizarContador() {
             document.getElementById('contador').textContent = `Itens anotados: ${Object.keys(memoriaRonda).length}`;
         }
 
         document.getElementById('filtroSetor').addEventListener('change', (e) => {
             const filtrados = bancoDados.filter(item => item.setor === e.target.value);
             renderizarLista(filtrados);
+            document.getElementById('busca').value = ''; 
         });
 
         document.getElementById('busca').addEventListener('input', (e) => {
@@ -118,10 +169,6 @@
                     item.sn.toUpperCase().includes(termo)
                 );
                 renderizarLista(filtrados);
-            } else if (termo.length === 0) {
-                // Se limpar a busca e houver setor selecionado, volta para o setor
-                const setorSel = document.getElementById('filtroSetor').value;
-                if(setorSel) renderizarLista(bancoDados.filter(i => i.setor === setorSel));
             }
         });
 
@@ -129,6 +176,7 @@
             const listaParaExportar = Object.values(memoriaRonda);
             if (listaParaExportar.length === 0) return alert("Nenhum dado registrado!");
             
+            // Adiciona BOM para o Excel reconhecer acentos
             let csv = "\uFEFFTAG,SETOR_ORIGINAL,SETOR_ENCONTRADO,LEITO,DATA\n";
             listaParaExportar.forEach(row => {
                 csv += `"${row.TAG}","${row.SETOR_ORIGINAL}","${row.SETOR_ENCONTRADO}","${row.LEITO}","${row.DATA}"\n`;
@@ -138,7 +186,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.setAttribute('href', url);
-            a.setAttribute('download', `ronda_completa_${new Date().toISOString().slice(0,10)}.csv`);
+            a.setAttribute('download', `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`);
             a.click();
         }
     </script>
