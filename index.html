@@ -3,47 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Continuidade Inteligente</title>
+    <title>Ronda de Manutenção - Corrigido</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-2 sm:p-4">
     <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
         <h1 class="text-2xl font-bold text-blue-800 mb-2">Ronda Hospitalar</h1>
-        <p class="text-xs text-gray-500 mb-6 italic">Módulo de Inventário e Localização</p>
+        <p class="text-[10px] text-gray-400 mb-4 uppercase tracking-widest">Protocolo de Integridade de Dados</p>
         
         <div id="setup" class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
             <div id="passo1">
-                <p class="text-sm text-blue-800 mb-2 font-bold">1º Carregar Base Geral (JSON):</p>
+                <p class="text-sm text-blue-800 mb-2 font-bold">1º Banco de Dados (JSON):</p>
                 <input type="file" id="arquivoJson" accept=".json" class="text-xs mb-4 w-full">
             </div>
-            
             <div id="passo2" class="opacity-30 pointer-events-none transition-opacity duration-500">
-                <p class="text-sm text-green-800 mb-2 font-bold">2º Restaurar Progresso? (Opcional - CSV):</p>
+                <p class="text-sm text-green-800 mb-2 font-bold">2º Continuar Ronda? (Opcional - CSV):</p>
                 <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full">
-                <p class="text-[10px] text-gray-500 mt-2">O CSV só pode ser lido após o JSON estar carregado.</p>
             </div>
         </div>
 
         <div id="appBody" class="hidden">
-            <div class="sticky top-0 bg-white pt-2 pb-4 z-10 border-b border-gray-100">
-                <input type="text" id="busca" placeholder="🔍 Buscar TAG ou SN na base total..." 
+            <div class="sticky top-0 bg-white pt-2 pb-4 z-10 border-b">
+                <input type="text" id="busca" placeholder="🔍 Buscar TAG ou SN..." 
                        class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm">
-
                 <select id="filtroSetor" class="w-full p-3 border rounded-lg bg-white shadow-sm border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none">
                     <option value="">Filtrar por Setor...</option>
                 </select>
-
                 <div class="flex justify-between items-center mt-4">
                     <span id="contador" class="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-200">Itens anotados: 0</span>
-                    <button onclick="window.location.reload()" class="text-[10px] text-red-500 font-bold uppercase underline">Reiniciar App</button>
+                    <button onclick="window.location.reload()" class="text-[10px] text-red-500 font-bold uppercase underline">Reiniciar</button>
                 </div>
             </div>
-
-            <div id="listaEquipamentos" class="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2">
-                </div>
-
+            <div id="listaEquipamentos" class="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2"></div>
             <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg font-bold shadow-lg transition-all active:scale-95">
-                📥 Finalizar e Baixar Relatório (CSV)
+                📥 Finalizar e Baixar (CSV)
             </button>
         </div>
     </div>
@@ -52,59 +45,46 @@
         let bancoDados = [];
         let memoriaRonda = {}; 
 
-        // --- 1. CARREGAMENTO DO JSON (BASE OBRIGATÓRIA) ---
+        // 1. CARREGAMENTO DO JSON
         document.getElementById('arquivoJson').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
-                try {
-                    bancoDados = JSON.parse(event.target.result);
-                    
-                    // Libera o Passo 2 e o corpo do App
-                    document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
-                    document.getElementById('appBody').classList.remove('hidden');
-                    
-                    popularSetores();
-                    console.log("Base JSON carregada.");
-                } catch (err) {
-                    alert("Erro no JSON. Verifique o arquivo.");
-                }
+                bancoDados = JSON.parse(event.target.result);
+                document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
+                document.getElementById('appBody').classList.remove('hidden');
+                popularSetores();
             };
             reader.readAsText(e.target.files[0]);
         });
 
-        // --- 2. CARREGAMENTO DO CSV (PROGRESSO OPCIONAL) ---
+        // 2. CARREGAMENTO DO CSV (CORRIGIDO PARA PONTO E VÍRGULA E QUOTES)
         document.getElementById('arquivoCsvProgresso').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
                 const linhas = event.target.result.split('\n');
                 let restaurados = 0;
-                
-                // Começa em 1 para pular o cabeçalho
                 for (let i = 1; i < linhas.length; i++) {
-                    if (!linhas[i].trim()) continue;
+                    let linha = linhas[i].trim();
+                    if (!linha) continue;
                     
-                    // Limpa aspas e divide
-                    const col = linhas[i].replace(/"/g, '').split(',');
-                    
+                    // Regex para separar por ";" respeitando aspas
+                    const col = linha.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g) || [];
+                    const limpar = (s) => s ? s.replace(/^"|"$/g, '').trim() : "";
+
                     if (col.length >= 4) {
-                        const tag = col[0];
-                        // Só restaura se a TAG existir no nosso bancoDados
-                        const existeNoBanco = bancoDados.some(item => item.tag === tag);
-                        
-                        if (existeNoBanco) {
-                            memoriaRonda[tag] = {
-                                TAG: tag,
-                                SETOR_ORIGINAL: col[1],
-                                SETOR_ENCONTRADO: col[2],
-                                LEITO: col[3],
-                                DATA: col[4] || new Date().toLocaleDateString()
-                            };
-                            restaurados++;
-                        }
+                        const tag = limpar(col[0]);
+                        memoriaRonda[tag] = {
+                            TAG: tag,
+                            SETOR_ORIGINAL: limpar(col[1]),
+                            SETOR_ENCONTRADO: limpar(col[2]),
+                            LEITO: limpar(col[3]),
+                            DATA: limpar(col[4]) || new Date().toLocaleDateString()
+                        };
+                        restaurados++;
                     }
                 }
                 atualizarContador();
-                alert(`${restaurados} registros de leitos foram restaurados com sucesso!`);
+                alert(`${restaurados} itens restaurados!`);
             };
             reader.readAsText(e.target.files[0]);
         });
@@ -114,10 +94,9 @@
             select.innerHTML = '<option value="">Filtrar por Setor...</option>';
             const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
             setores.forEach(setor => {
-                if(setor && setor !== "nan") {
+                if(setor) {
                     const opt = document.createElement('option');
-                    opt.value = setor;
-                    opt.textContent = setor;
+                    opt.value = setor; opt.textContent = setor;
                     select.appendChild(opt);
                 }
             });
@@ -126,23 +105,20 @@
         function renderizarLista(itens) {
             const container = document.getElementById('listaEquipamentos');
             container.innerHTML = '';
-            
             itens.forEach(item => {
                 const valorGravado = memoriaRonda[item.tag] ? memoriaRonda[item.tag].LEITO : "";
                 const corStatus = item.status === "ATIVO" ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-700";
-                
                 const div = document.createElement('div');
-                div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm border border-gray-200 transition-all";
+                div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm border border-gray-200";
                 div.innerHTML = `
-                    <div class="flex justify-between items-start mb-1">
-                        <p class="font-bold text-gray-800 leading-tight text-sm">${item.nome}</p>
-                        <span class="text-[9px] px-2 py-0.5 rounded-full font-bold ${corStatus}">${item.status}</span>
+                    <div class="flex justify-between items-start mb-1 text-sm font-bold">
+                        <p class="text-gray-800">${item.nome}</p>
+                        <span class="text-[9px] px-2 py-0.5 rounded-full ${corStatus}">${item.status}</span>
                     </div>
                     <p class="text-[10px] text-gray-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
                     <p class="text-[9px] text-blue-600 mb-2">CADASTRO: ${item.setor}</p>
-                    <input type="text" placeholder="Qual o leito / localização?" 
-                           value="${valorGravado}"
-                           oninput="salvarLocalizacao('${item.tag}', '${item.setor}', this.value)"
+                    <input type="text" placeholder="Leito / Localização..." value="${valorGravado}"
+                           oninput="salvarLocalizacao('${item.tag}', '${item.setor.replace(/'/g, "\\'")}', this.value)"
                            class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400 shadow-inner">
                 `;
                 container.appendChild(div);
@@ -151,14 +127,11 @@
 
         function salvarLocalizacao(tag, setorOrig, leito) {
             const setorAtual = document.getElementById('filtroSetor').value || "Busca Global";
-            if (leito.trim() === "") {
-                delete memoriaRonda[tag];
-            } else {
+            if (leito.trim() === "") { delete memoriaRonda[tag]; } 
+            else {
                 memoriaRonda[tag] = {
-                    TAG: tag,
-                    SETOR_ORIGINAL: setorOrig,
-                    SETOR_ENCONTRADO: setorAtual,
-                    LEITO: leito,
+                    TAG: tag, SETOR_ORIGINAL: setorOrig,
+                    SETOR_ENCONTRADO: setorAtual, LEITO: leito,
                     DATA: new Date().toLocaleDateString()
                 };
             }
@@ -170,36 +143,28 @@
         }
 
         document.getElementById('filtroSetor').addEventListener('change', (e) => {
-            const filtrados = bancoDados.filter(item => item.setor === e.target.value);
-            renderizarLista(filtrados);
-            document.getElementById('busca').value = ''; 
+            renderizarLista(bancoDados.filter(item => item.setor === e.target.value));
         });
 
         document.getElementById('busca').addEventListener('input', (e) => {
             const termo = e.target.value.toUpperCase();
             if(termo.length > 2) {
-                const filtrados = bancoDados.filter(item => 
-                    item.tag.toUpperCase().includes(termo) || 
-                    item.sn.toUpperCase().includes(termo)
-                );
-                renderizarLista(filtrados);
+                renderizarLista(bancoDados.filter(item => item.tag.includes(termo) || item.sn.includes(termo)));
             }
         });
 
         function exportarDados() {
-            const listaParaExportar = Object.values(memoriaRonda);
-            if (listaParaExportar.length === 0) return alert("Nenhum dado para exportar!");
-            
-            let csv = "\uFEFFTAG,SETOR_ORIGINAL,SETOR_ENCONTRADO,LEITO,DATA\n";
-            listaParaExportar.forEach(row => {
-                csv += `"${row.TAG}","${row.SETOR_ORIGINAL}","${row.SETOR_ENCONTRADO}","${row.LEITO}","${row.DATA}"\n`;
+            const lista = Object.values(memoriaRonda);
+            if (lista.length === 0) return alert("Vazio!");
+            // Usando PONTO E VÍRGULA (;) para evitar quebra em nomes como "CTI (I, II, III)"
+            let csv = "\uFEFFTAG;SETOR_ORIGINAL;SETOR_ENCONTRADO;LEITO;DATA\n";
+            lista.forEach(row => {
+                csv += `"${row.TAG}";"${row.SETOR_ORIGINAL}";"${row.SETOR_ENCONTRADO}";"${row.LEITO}";"${row.DATA}"\n`;
             });
-
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.setAttribute('href', url);
-            a.setAttribute('download', `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`);
+            a.href = window.URL.createObjectURL(blob);
+            a.download = `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
         }
     </script>
