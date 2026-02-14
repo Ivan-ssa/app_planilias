@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Fluxo Direto</title>
+    <title>Ronda de Manutenção - Modo Produção</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input { text-transform: uppercase; }
@@ -19,9 +19,12 @@
         <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Registro de Novos Itens</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Entrada Rápida de Dados</p>
             </div>
-            <div id="contador" class="bg-blue-600 text-white px-6 py-2 rounded-full font-black text-lg shadow-inner">0</div>
+            <div class="flex gap-4 items-center">
+                <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm" title="Novos nesta sessão">Sessão: 0</div>
+                <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm" title="Total no arquivo">Total: 0</div>
+            </div>
         </div>
 
         <div id="setup" class="bg-white p-4 rounded-xl shadow-sm mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 border border-blue-100">
@@ -30,47 +33,37 @@
                 <input type="file" id="arquivoJson" accept=".json" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
             </div>
             <div id="passo2" class="opacity-30 pointer-events-none transition-all duration-500">
-                <label class="text-[10px] font-bold text-green-700 uppercase">2. Continuar Anterior (CSV) - Opcional</label>
+                <label class="text-[10px] font-bold text-green-700 uppercase">2. Restaurar Progresso (CSV)</label>
                 <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
             </div>
         </div>
 
         <div id="appBody" class="hidden">
-            <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[9px] text-white/70 font-bold uppercase">Busca por TAG ou SN</label>
-                    <input type="text" id="busca" placeholder="DIGITE A TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
-                </div>
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar por Setor</label>
-                    <select id="filtroSetor" class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none">
-                        <option value="">FILTRAR POR SETOR...</option>
-                    </select>
-                </div>
-            </div>
-
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
                 
-                <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
-                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        🔍 Resultados da Busca
-                    </h2>
-                    <div id="listaEquipamentos" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Use o campo de busca acima.</p>
+                <div class="bg-white rounded-xl shadow-md p-6 border-x border-b">
+                    <h2 class="text-xs font-black text-blue-600 uppercase mb-4 tracking-widest">🔍 Bipar Equipamento</h2>
+                    
+                    <div class="mb-6">
+                        <label class="text-[10px] font-bold text-slate-400 uppercase">Tag ou Número de Série</label>
+                        <input type="text" id="busca" placeholder="DIGITE E AGUARDE..." class="w-full p-4 rounded-xl bg-slate-100 border-2 border-transparent focus:border-blue-500 text-xl font-black outline-none transition-all">
+                    </div>
+
+                    <div id="resultadoBusca" class="min-h-[200px] border-t pt-4">
+                        <p class="text-slate-400 text-sm italic text-center py-10 uppercase font-bold">Aguardando busca...</p>
                     </div>
                 </div>
 
-                <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200">
-                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        📝 Itens Adicionados nesta Ronda
-                    </h2>
+                <div class="bg-slate-50 rounded-xl shadow-md p-6 border-x border-b border-slate-200">
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest">✅ Novos Itens Adicionados Agora</h2>
                     <div id="listaColeta" class="space-y-2 max-h-[440px] overflow-y-auto pr-2 mb-4">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Lista de Coleta Vazia</p>
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado nesta sessão.</p>
                     </div>
                     
                     <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
-                        📥 Finalizar e Baixar CSV
+                        📥 Finalizar e Baixar CSV Completo
                     </button>
+                    <button onclick="window.location.reload()" class="w-full mt-4 text-red-400 text-[10px] font-bold uppercase underline">Reiniciar Sistema</button>
                 </div>
 
             </div>
@@ -82,6 +75,7 @@
     <script>
         let bancoDados = [];
         let memoriaRonda = {}; 
+        let itensNovosSessao = []; // LISTA PARA CONTROLAR O QUE É NOVO DESTA VEZ
 
         // 1. CARREGAR JSON
         document.getElementById('arquivoJson').addEventListener('change', function(e) {
@@ -92,9 +86,8 @@
                     bancoDados = JSON.parse(event.target.result);
                     document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
                     document.getElementById('appBody').classList.remove('hidden');
-                    popularSetores();
                     showToast("✅ BANCO CARREGADO", "bg-blue-600");
-                } catch(err) { alert("Erro ao ler JSON!"); }
+                } catch(err) { alert("Erro no JSON!"); }
             };
             reader.readAsText(e.target.files[0]);
         });
@@ -122,119 +115,118 @@
                         };
                     }
                 }
-                atualizarTudo();
-                showToast("♻️ PROGRESSO RECUPERADO", "bg-green-600");
+                atualizarContadores();
+                showToast("♻️ PROGRESSO CARREGADO", "bg-green-600");
             };
             reader.readAsText(e.target.files[0]);
         });
 
-        function popularSetores() {
-            const select = document.getElementById('filtroSetor');
-            select.innerHTML = '<option value="">FILTRAR POR SETOR...</option>';
-            const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
-            setores.forEach(setor => {
-                if(setor) {
-                    const opt = document.createElement('option');
-                    opt.value = setor.toUpperCase(); opt.textContent = setor.toUpperCase();
-                    select.appendChild(opt);
+        // BUSCA (LADO ESQUERDO) - SÓ MOSTRA O ITEM ESPECÍFICO
+        const filtrarBusca = () => {
+            const termo = document.getElementById('busca').value.toUpperCase();
+            const container = document.getElementById('resultadoBusca');
+
+            if(termo.length > 2) {
+                const filtrados = bancoDados.filter(item => 
+                    item.tag.toUpperCase() === termo || item.sn.toUpperCase() === termo
+                );
+
+                if (filtrados.length > 0) {
+                    container.innerHTML = '';
+                    filtrados.forEach(item => {
+                        const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
+                        const div = document.createElement('div');
+                        div.className = "p-6 bg-blue-50 border-2 border-blue-200 rounded-2xl animate-in zoom-in-95 duration-200";
+                        div.innerHTML = `
+                            <div class="flex justify-between items-start mb-4">
+                                <div>
+                                    <p class="text-lg font-black text-slate-800 leading-tight">${item.nome.toUpperCase()}</p>
+                                    <p class="text-xs font-mono text-blue-600 uppercase">TAG: ${item.tag}</p>
+                                </div>
+                                <span class="text-[10px] px-3 py-1 rounded-full font-black uppercase ${statusClass}">${item.status}</span>
+                            </div>
+                            <div class="space-y-4">
+                                <div>
+                                    <label class="text-[10px] font-bold text-slate-400 uppercase">Leito / Localização</label>
+                                    <input type="text" id="in-leito" placeholder="EX: LEITO 10..." 
+                                           class="w-full p-4 border-2 rounded-xl text-lg font-black focus:border-green-500 outline-none shadow-sm">
+                                </div>
+                                <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
+                                        class="w-full bg-blue-600 text-white p-4 rounded-xl font-black hover:bg-blue-700 shadow-lg transition-all active:scale-95">
+                                    CONFIRMAR OK
+                                </button>
+                            </div>
+                        `;
+                        container.appendChild(div);
+                        document.getElementById('in-leito').focus();
+                    });
+                } else {
+                    container.innerHTML = '<p class="text-red-400 text-sm text-center py-10 uppercase font-bold">Equipamento não encontrado.</p>';
                 }
-            });
-        }
-
-        // RENDERIZA APENAS O QUE ESTÁ SENDO BUSCADO
-        function renderizarListaBusca(itens) {
-            const container = document.getElementById('listaEquipamentos');
-            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Sem resultados</p>';
-            
-            itens.forEach(item => {
-                const jaRegistrado = memoriaRonda[item.tag.toUpperCase()];
-                const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
-                
-                const div = document.createElement('div');
-                div.className = `p-4 border-l-4 ${jaRegistrado ? 'border-green-600 bg-green-50' : 'border-slate-300 bg-white'} rounded shadow-sm border transition-all`;
-                div.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <p class="text-sm font-black text-slate-800">${item.nome.toUpperCase()}</p>
-                            <p class="text-[10px] font-mono text-slate-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
-                        </div>
-                        <span class="text-[9px] px-3 py-1 rounded-full font-bold uppercase ${statusClass}">${item.status}</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="in-busca-${item.tag}" placeholder="LEITO / LOCAL..." 
-                               value="${jaRegistrado ? jaRegistrado.LEITO : ''}"
-                               class="flex-1 p-2 border-2 rounded text-xs font-bold focus:border-blue-500 outline-none shadow-inner">
-                        <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
-                                class="bg-blue-600 text-white px-5 py-2 rounded text-xs font-black hover:bg-blue-700 active:scale-95 transition-all">
-                            OK
-                        </button>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        // RENDERIZA APENAS O LOG (LADO DIREITO)
-        function renderizarLogNovosItens() {
-            const container = document.getElementById('listaColeta');
-            const itens = Object.values(memoriaRonda).reverse(); 
-            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Aguardando registros...</p>';
-            
-            itens.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2 animate-in slide-in-from-right-4 duration-300";
-                div.innerHTML = `
-                    <div class="flex-1">
-                        <div class="flex items-center gap-2">
-                            <span class="text-xs font-black text-blue-800 uppercase">${item.TAG}</span>
-                            <span class="text-[9px] text-green-600 font-bold bg-green-50 px-1 rounded border border-green-100">${item.DATA}</span>
-                        </div>
-                        <p class="text-[11px] font-bold text-slate-700 uppercase">LEITO: ${item.LEITO}</p>
-                    </div>
-                    <button onclick="removerItem('${item.TAG}')" class="text-slate-300 hover:text-red-500 px-2">✕</button>
-                `;
-                container.appendChild(div);
-            });
-        }
+            } else {
+                container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-10 uppercase font-bold">Aguardando busca...</p>';
+            }
+        };
 
         function confirmarAcao(tag, setorOrig) {
-            const inputId = `in-busca-${tag}`;
-            const inputElem = document.getElementById(inputId);
-            const leitoValor = inputElem.value.trim().toUpperCase();
-            const setorAtual = document.getElementById('filtroSetor').value || "BUSCA GLOBAL";
+            const leitoInput = document.getElementById('in-leito');
+            const leitoValor = leitoInput.value.trim().toUpperCase();
 
             if (!leitoValor) {
-                showToast("⚠️ DIGITE O LEITO!", "bg-red-500");
-                inputElem.focus();
+                showToast("⚠️ INFORME O LEITO!", "bg-red-500");
+                leitoInput.focus();
                 return;
             }
 
-            memoriaRonda[tag.toUpperCase()] = {
+            const novoRegistro = {
                 TAG: tag.toUpperCase(),
                 SETOR_ORIGINAL: setorOrig.toUpperCase(),
-                SETOR_ENCONTRADO: setorAtual,
+                SETOR_ENCONTRADO: "RONDA ATUAL",
                 LEITO: leitoValor,
                 DATA: new Date().toLocaleDateString('pt-BR')
             };
 
-            showToast(`✅ ${tag} REGISTRADO`, "bg-slate-800");
-            atualizarTudo();
-        }
-
-        function removerItem(tag) {
-            delete memoriaRonda[tag.toUpperCase()];
-            atualizarTudo();
-        }
-
-        function atualizarTudo() {
-            document.getElementById('contador').textContent = Object.keys(memoriaRonda).length;
-            renderizarLogNovosItens();
+            // Salva na memória geral (para o CSV)
+            memoriaRonda[tag.toUpperCase()] = novoRegistro;
             
-            // Re-renderiza a lista de busca para marcar em verde o que foi adicionado
-            const busca = document.getElementById('busca').value.toUpperCase();
-            const setor = document.getElementById('filtroSetor').value;
-            if (setor) renderizarListaBusca(bancoDados.filter(i => i.setor.toUpperCase() === setor));
-            else if (busca.length > 2) filtrarBusca();
+            // Adiciona na lista da SESSÃO (para aparecer na direita)
+            // Se já existir na sessão, removemos o antigo para o novo ficar no topo
+            itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag.toUpperCase());
+            itensNovosSessao.unshift(novoRegistro);
+
+            showToast(`✅ ${tag} REGISTRADO`, "bg-slate-800");
+            
+            // LIMPA BUSCA E LADO ESQUERDO PARA O PRÓXIMO
+            document.getElementById('busca').value = "";
+            document.getElementById('resultadoBusca').innerHTML = '<p class="text-green-500 text-sm text-center py-10 uppercase font-black">Pronto para o próximo!</p>';
+            document.getElementById('busca').focus();
+
+            atualizarContadores();
+            renderizarLogSessao();
+        }
+
+        // RENDERIZA APENAS O QUE FOI FEITO NESTA SESSÃO (DIREITA)
+        function renderizarLogSessao() {
+            const container = document.getElementById('listaColeta');
+            container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item nesta sessão.</p>';
+            
+            itensNovosSessao.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-4 bg-white border border-slate-200 rounded-xl shadow-sm mb-2 flex justify-between items-center animate-in slide-in-from-right-4";
+                div.innerHTML = `
+                    <div>
+                        <span class="text-[10px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span>
+                        <p class="text-xs font-bold text-slate-700 uppercase mt-1">LEITO: ${item.LEITO}</p>
+                    </div>
+                    <span class="text-[9px] text-slate-300 font-bold">${item.DATA}</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function atualizarContadores() {
+            document.getElementById('contadorSessao').textContent = `Sessão: ${itensNovosSessao.length}`;
+            document.getElementById('contadorTotal').textContent = `Total: ${Object.keys(memoriaRonda).length}`;
         }
 
         function showToast(msg, cor) {
@@ -246,22 +238,6 @@
             }, 2000);
         }
 
-        document.getElementById('filtroSetor').addEventListener('change', (e) => {
-            document.getElementById('busca').value = "";
-            renderizarListaBusca(bancoDados.filter(item => item.setor.toUpperCase() === e.target.value));
-        });
-
-        const filtrarBusca = () => {
-            const termo = document.getElementById('busca').value.toUpperCase();
-            if(termo.length > 2) {
-                renderizarListaBusca(bancoDados.filter(item => 
-                    item.tag.toUpperCase().includes(termo) || 
-                    item.sn.toUpperCase().includes(termo)
-                ));
-            } else {
-                document.getElementById('listaEquipamentos').innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Digite ao menos 3 caracteres.</p>';
-            }
-        };
         document.getElementById('busca').addEventListener('input', filtrarBusca);
 
         function exportarDados() {
@@ -275,7 +251,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `ronda_${new Date().toISOString().slice(0,10)}.csv`;
+            a.download = `ronda_completa_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
         }
     </script>
