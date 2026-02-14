@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Corrigido</title>
+    <title>Ronda de Manutenção - Fluxo Direto</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input { text-transform: uppercase; }
@@ -19,7 +19,7 @@
         <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo de Inspeção</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Registro de Novos Itens</p>
             </div>
             <div id="contador" class="bg-blue-600 text-white px-6 py-2 rounded-full font-black text-lg shadow-inner">0</div>
         </div>
@@ -38,33 +38,41 @@
         <div id="appBody" class="hidden">
             <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
                 <div class="flex-1 min-w-[200px]">
-                    <input type="text" id="busca" placeholder="BUSCAR TAG OU SÉRIE..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Busca por TAG ou SN</label>
+                    <input type="text" id="busca" placeholder="DIGITE A TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
                 </div>
                 <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar por Setor</label>
                     <select id="filtroSetor" class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none">
                         <option value="">FILTRAR POR SETOR...</option>
                     </select>
                 </div>
-                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Reiniciar</button>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
+                
                 <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
-                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">🔍 Localizar</h2>
+                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        🔍 Resultados da Busca
+                    </h2>
                     <div id="listaEquipamentos" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Selecione um arquivo JSON acima.</p>
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Use o campo de busca acima.</p>
                     </div>
                 </div>
 
                 <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200">
-                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest">✅ Itens Registrados</h2>
-                    <div id="listaColeta" class="space-y-2 max-h-[430px] overflow-y-auto pr-2 mb-4">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        📝 Itens Adicionados nesta Ronda
+                    </h2>
+                    <div id="listaColeta" class="space-y-2 max-h-[440px] overflow-y-auto pr-2 mb-4">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Lista de Coleta Vazia</p>
                     </div>
+                    
                     <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
                         📥 Finalizar e Baixar CSV
                     </button>
                 </div>
+
             </div>
         </div>
     </div>
@@ -75,24 +83,18 @@
         let bancoDados = [];
         let memoriaRonda = {}; 
 
-        // 1. CARREGAR JSON - LIBERA O PASSO 2 E O APP
+        // 1. CARREGAR JSON
         document.getElementById('arquivoJson').addEventListener('change', function(e) {
             if (!e.target.files[0]) return;
-            
             const reader = new FileReader();
             reader.onload = function(event) {
                 try {
                     bancoDados = JSON.parse(event.target.result);
-                    
-                    // LIBERAÇÃO DOS CAMPOS
                     document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
                     document.getElementById('appBody').classList.remove('hidden');
-                    
                     popularSetores();
                     showToast("✅ BANCO CARREGADO", "bg-blue-600");
-                } catch(err) {
-                    alert("Erro ao ler o arquivo JSON. Verifique a formatação.");
-                }
+                } catch(err) { alert("Erro ao ler JSON!"); }
             };
             reader.readAsText(e.target.files[0]);
         });
@@ -103,7 +105,6 @@
             const reader = new FileReader();
             reader.onload = function(event) {
                 const linhas = event.target.result.split('\n');
-                let count = 0;
                 for (let i = 1; i < linhas.length; i++) {
                     let linha = linhas[i].trim();
                     if (!linha) continue;
@@ -119,11 +120,10 @@
                             LEITO: limpar(col[3]),
                             DATA: limpar(col[4]) || new Date().toLocaleDateString('pt-BR')
                         };
-                        count++;
                     }
                 }
                 atualizarTudo();
-                showToast(`♻️ ${count} ITENS RECUPERADOS`, "bg-green-600");
+                showToast("♻️ PROGRESSO RECUPERADO", "bg-green-600");
             };
             reader.readAsText(e.target.files[0]);
         });
@@ -141,16 +141,17 @@
             });
         }
 
+        // RENDERIZA APENAS O QUE ESTÁ SENDO BUSCADO
         function renderizarListaBusca(itens) {
             const container = document.getElementById('listaEquipamentos');
             container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Sem resultados</p>';
             
             itens.forEach(item => {
-                const jaColetado = memoriaRonda[item.tag.toUpperCase()];
+                const jaRegistrado = memoriaRonda[item.tag.toUpperCase()];
                 const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
                 
                 const div = document.createElement('div');
-                div.className = `p-4 border-l-4 ${jaColetado ? 'border-green-600 bg-green-50' : 'border-slate-300 bg-white'} rounded shadow-sm border transition-all`;
+                div.className = `p-4 border-l-4 ${jaRegistrado ? 'border-green-600 bg-green-50' : 'border-slate-300 bg-white'} rounded shadow-sm border transition-all`;
                 div.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div>
@@ -160,11 +161,11 @@
                         <span class="text-[9px] px-3 py-1 rounded-full font-bold uppercase ${statusClass}">${item.status}</span>
                     </div>
                     <div class="flex gap-2">
-                        <input type="text" id="in-busca-${item.tag}" placeholder="LEITO..." 
-                               value="${jaColetado ? jaColetado.LEITO : ''}"
-                               class="flex-1 p-2 border-2 rounded text-xs font-bold focus:border-blue-500 outline-none">
+                        <input type="text" id="in-busca-${item.tag}" placeholder="LEITO / LOCAL..." 
+                               value="${jaRegistrado ? jaRegistrado.LEITO : ''}"
+                               class="flex-1 p-2 border-2 rounded text-xs font-bold focus:border-blue-500 outline-none shadow-inner">
                         <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
-                                class="bg-blue-600 text-white px-5 py-2 rounded text-xs font-black hover:bg-blue-700 transition-all">
+                                class="bg-blue-600 text-white px-5 py-2 rounded text-xs font-black hover:bg-blue-700 active:scale-95 transition-all">
                             OK
                         </button>
                     </div>
@@ -173,21 +174,22 @@
             });
         }
 
+        // RENDERIZA APENAS O LOG (LADO DIREITO)
         function renderizarLogNovosItens() {
             const container = document.getElementById('listaColeta');
             const itens = Object.values(memoriaRonda).reverse(); 
-            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>';
+            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Aguardando registros...</p>';
             
             itens.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2";
+                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2 animate-in slide-in-from-right-4 duration-300";
                 div.innerHTML = `
                     <div class="flex-1">
                         <div class="flex items-center gap-2">
                             <span class="text-xs font-black text-blue-800 uppercase">${item.TAG}</span>
                             <span class="text-[9px] text-green-600 font-bold bg-green-50 px-1 rounded border border-green-100">${item.DATA}</span>
                         </div>
-                        <p class="text-[11px] font-bold text-slate-700 uppercase">📍 LEITO: ${item.LEITO}</p>
+                        <p class="text-[11px] font-bold text-slate-700 uppercase">LEITO: ${item.LEITO}</p>
                     </div>
                     <button onclick="removerItem('${item.TAG}')" class="text-slate-300 hover:text-red-500 px-2">✕</button>
                 `;
@@ -202,7 +204,7 @@
             const setorAtual = document.getElementById('filtroSetor').value || "BUSCA GLOBAL";
 
             if (!leitoValor) {
-                showToast("⚠️ INFORME O LEITO!", "bg-red-500");
+                showToast("⚠️ DIGITE O LEITO!", "bg-red-500");
                 inputElem.focus();
                 return;
             }
@@ -215,7 +217,7 @@
                 DATA: new Date().toLocaleDateString('pt-BR')
             };
 
-            showToast(`REGISTRADO: ${tag}`, "bg-slate-800");
+            showToast(`✅ ${tag} REGISTRADO`, "bg-slate-800");
             atualizarTudo();
         }
 
@@ -227,6 +229,8 @@
         function atualizarTudo() {
             document.getElementById('contador').textContent = Object.keys(memoriaRonda).length;
             renderizarLogNovosItens();
+            
+            // Re-renderiza a lista de busca para marcar em verde o que foi adicionado
             const busca = document.getElementById('busca').value.toUpperCase();
             const setor = document.getElementById('filtroSetor').value;
             if (setor) renderizarListaBusca(bancoDados.filter(i => i.setor.toUpperCase() === setor));
@@ -254,6 +258,8 @@
                     item.tag.toUpperCase().includes(termo) || 
                     item.sn.toUpperCase().includes(termo)
                 ));
+            } else {
+                document.getElementById('listaEquipamentos').innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Digite ao menos 3 caracteres.</p>';
             }
         };
         document.getElementById('busca').addEventListener('input', filtrarBusca);
