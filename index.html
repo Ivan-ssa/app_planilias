@@ -3,61 +3,99 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Corrigido</title>
+    <title>Ronda de Manutenção Pró</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input { text-transform: uppercase; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
 </head>
-<body class="bg-gray-100 p-2 sm:p-4">
-    <div class="max-w-md mx-auto bg-white rounded-xl shadow-md overflow-hidden p-6">
-        <h1 class="text-2xl font-bold text-blue-800 mb-2">Ronda Hospitalar</h1>
-        <p class="text-[10px] text-gray-400 mb-4 uppercase tracking-widest">Protocolo de Integridade de Dados</p>
+<body class="bg-slate-100 p-2 sm:p-4 font-sans">
+    <div class="max-w-6xl mx-auto">
         
-        <div id="setup" class="mb-6 p-4 border-2 border-dashed border-blue-300 rounded-lg bg-blue-50">
-            <div id="passo1">
-                <p class="text-sm text-blue-800 mb-2 font-bold">1º Banco de Dados (JSON):</p>
-                <input type="file" id="arquivoJson" accept=".json" class="text-xs mb-4 w-full">
-            </div>
-            <div id="passo2" class="opacity-30 pointer-events-none transition-opacity duration-500">
-                <p class="text-sm text-green-800 mb-2 font-bold">2º Continuar Ronda? (Opcional - CSV):</p>
-                <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full">
+        <div class="bg-white rounded-xl shadow-sm p-6 mb-4 border-b-4 border-blue-600">
+            <h1 class="text-2xl font-bold text-blue-900">Ronda Hospitalar <span class="text-blue-500 font-light text-lg">| Painel de Controle</span></h1>
+            
+            <div id="setup" class="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border-2 border-dashed border-blue-200 rounded-lg bg-blue-50/50">
+                <div>
+                    <p class="text-xs font-bold text-blue-800 uppercase mb-1">1. Banco de Dados (JSON):</p>
+                    <input type="file" id="arquivoJson" accept=".json" class="text-xs w-full bg-white p-2 border rounded">
+                </div>
+                <div id="passo2" class="opacity-30 pointer-events-none transition-opacity">
+                    <p class="text-xs font-bold text-green-800 uppercase mb-1">2. Restaurar Progresso (CSV):</p>
+                    <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full bg-white p-2 border rounded">
+                </div>
             </div>
         </div>
 
         <div id="appBody" class="hidden">
-            <div class="sticky top-0 bg-white pt-2 pb-4 z-10 border-b">
-                <input type="text" id="busca" placeholder="🔍 Buscar TAG ou SN..." 
-                       class="w-full p-3 border rounded-lg mb-4 focus:ring-2 focus:ring-blue-500 outline-none shadow-sm">
-                <select id="filtroSetor" class="w-full p-3 border rounded-lg bg-white shadow-sm border-blue-200 focus:ring-2 focus:ring-blue-500 outline-none">
-                    <option value="">Filtrar por Setor...</option>
-                </select>
-                <div class="flex justify-between items-center mt-4">
-                    <span id="contador" class="text-xs text-green-600 font-bold bg-green-50 px-2 py-1 rounded border border-green-200">Itens anotados: 0</span>
-                    <button onclick="window.location.reload()" class="text-[10px] text-red-500 font-bold uppercase underline">Reiniciar</button>
+            <div class="bg-white p-4 rounded-xl shadow-sm mb-4 flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[250px]">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Busca Rápida</label>
+                    <input type="text" id="busca" placeholder="TAG OU NÚMERO DE SÉRIE..." class="w-full p-3 border-2 border-gray-100 rounded-lg focus:border-blue-500 outline-none">
+                </div>
+                <div class="flex-1 min-w-[250px]">
+                    <label class="text-[10px] font-bold text-gray-400 uppercase">Setor Atual</label>
+                    <select id="filtroSetor" class="w-full p-3 border-2 border-gray-100 rounded-lg bg-white outline-none focus:border-blue-500 text-sm font-bold text-blue-800">
+                        <option value="">SELECIONE UM SETOR...</option>
+                    </select>
+                </div>
+                <div class="flex gap-2">
+                    <div id="contador" class="bg-blue-600 text-white px-4 py-3 rounded-lg font-bold text-sm shadow-md">Itens: 0</div>
+                    <button onclick="window.location.reload()" class="bg-red-50 text-red-500 px-3 py-3 rounded-lg text-[10px] font-bold uppercase border border-red-100 hover:bg-red-100 transition-colors">Reiniciar</button>
                 </div>
             </div>
-            <div id="listaEquipamentos" class="space-y-4 mt-4 max-h-[60vh] overflow-y-auto pr-2"></div>
-            <button onclick="exportarDados()" class="w-full mt-8 bg-green-600 hover:bg-green-700 text-white p-4 rounded-lg font-bold shadow-lg transition-all active:scale-95">
-                📥 Finalizar e Baixar (CSV)
-            </button>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+                    <h2 class="text-sm font-black text-gray-600 uppercase mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-blue-500 rounded-full"></span> Resultados da Busca
+                    </h2>
+                    <div id="listaEquipamentos" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                        <p class="text-gray-400 text-sm italic text-center py-10">Use a busca ou selecione um setor para listar equipamentos.</p>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm p-4 border border-gray-200">
+                    <h2 class="text-sm font-black text-green-600 uppercase mb-4 flex items-center gap-2">
+                        <span class="w-2 h-2 bg-green-500 rounded-full"></span> Itens Prontos para Salvar
+                    </h2>
+                    <div id="listaColeta" class="space-y-3 max-h-[420px] overflow-y-auto pr-2 mb-4">
+                        <p class="text-gray-400 text-sm italic text-center py-10">Nenhum item adicionado à lista ainda.</p>
+                    </div>
+                    <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-bold shadow-lg transition-all active:scale-95 flex items-center justify-center gap-2">
+                        <span>📥</span> FINALIZAR E BAIXAR CSV
+                    </button>
+                </div>
+
+            </div>
         </div>
     </div>
+
+    <div id="toast" class="fixed bottom-5 right-5 bg-black text-white px-6 py-3 rounded-full shadow-2xl transform translate-y-20 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
 
     <script>
         let bancoDados = [];
         let memoriaRonda = {}; 
 
-        // 1. CARREGAMENTO DO JSON
+        // CARREGAR JSON
         document.getElementById('arquivoJson').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
-                bancoDados = JSON.parse(event.target.result);
-                document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
-                document.getElementById('appBody').classList.remove('hidden');
-                popularSetores();
+                try {
+                    bancoDados = JSON.parse(event.target.result);
+                    document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
+                    document.getElementById('appBody').classList.remove('hidden');
+                    popularSetores();
+                    showToast("Banco de dados carregado!", "bg-blue-600");
+                } catch(e) { alert("Erro ao ler JSON!"); }
             };
             reader.readAsText(e.target.files[0]);
         });
 
-        // 2. CARREGAMENTO DO CSV (CORRIGIDO PARA PONTO E VÍRGULA E QUOTES)
+        // RESTAURAR CSV
         document.getElementById('arquivoCsvProgresso').addEventListener('change', function(e) {
             const reader = new FileReader();
             reader.onload = function(event) {
@@ -66,10 +104,8 @@
                 for (let i = 1; i < linhas.length; i++) {
                     let linha = linhas[i].trim();
                     if (!linha) continue;
-                    
-                    // Regex para separar por ";" respeitando aspas
                     const col = linha.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g) || [];
-                    const limpar = (s) => s ? s.replace(/^"|"$/g, '').trim() : "";
+                    const limpar = (s) => s ? s.replace(/^"|"$/g, '').trim().toUpperCase() : "";
 
                     if (col.length >= 4) {
                         const tag = limpar(col[0]);
@@ -78,94 +114,158 @@
                             SETOR_ORIGINAL: limpar(col[1]),
                             SETOR_ENCONTRADO: limpar(col[2]),
                             LEITO: limpar(col[3]),
-                            DATA: limpar(col[4]) || new Date().toLocaleDateString()
+                            DATA: limpar(col[4]) || new Date().toLocaleDateString('pt-BR')
                         };
                         restaurados++;
                     }
                 }
-                atualizarContador();
-                alert(`${restaurados} itens restaurados!`);
+                atualizarTudo();
+                showToast(`${restaurados} itens restaurados!`, "bg-green-600");
             };
             reader.readAsText(e.target.files[0]);
         });
 
         function popularSetores() {
             const select = document.getElementById('filtroSetor');
-            select.innerHTML = '<option value="">Filtrar por Setor...</option>';
+            select.innerHTML = '<option value="">SELECIONE UM SETOR...</option>';
             const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
             setores.forEach(setor => {
                 if(setor) {
                     const opt = document.createElement('option');
-                    opt.value = setor; opt.textContent = setor;
+                    opt.value = setor.toUpperCase(); opt.textContent = setor.toUpperCase();
                     select.appendChild(opt);
                 }
             });
         }
 
-        function renderizarLista(itens) {
+        function renderizarListaBusca(itens) {
             const container = document.getElementById('listaEquipamentos');
-            container.innerHTML = '';
+            container.innerHTML = itens.length ? '' : '<p class="text-gray-400 text-sm italic text-center py-10">Nenhum resultado.</p>';
+            
             itens.forEach(item => {
-                const valorGravado = memoriaRonda[item.tag] ? memoriaRonda[item.tag].LEITO : "";
-                const corStatus = item.status === "ATIVO" ? "bg-green-100 text-green-800" : "bg-gray-200 text-gray-700";
+                const jaExiste = memoriaRonda[item.tag];
                 const div = document.createElement('div');
-                div.className = "p-4 border-l-4 border-blue-500 bg-gray-50 rounded shadow-sm border border-gray-200";
+                div.className = `p-4 border-l-4 ${jaExiste ? 'border-green-500 bg-green-50' : 'border-blue-500 bg-gray-50'} rounded shadow-sm border border-gray-200 transition-all`;
                 div.innerHTML = `
-                    <div class="flex justify-between items-start mb-1 text-sm font-bold">
-                        <p class="text-gray-800">${item.nome}</p>
-                        <span class="text-[9px] px-2 py-0.5 rounded-full ${corStatus}">${item.status}</span>
+                    <div class="flex justify-between items-start text-sm font-bold mb-1">
+                        <p class="text-gray-800">${item.nome.toUpperCase()}</p>
+                        <span class="text-[9px] px-2 py-0.5 rounded-full ${item.status === 'ATIVO' ? 'bg-green-200 text-green-800' : 'bg-gray-300'}">${item.status}</span>
                     </div>
-                    <p class="text-[10px] text-gray-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
-                    <p class="text-[9px] text-blue-600 mb-2">CADASTRO: ${item.setor}</p>
-                    <input type="text" placeholder="Leito / Localização..." value="${valorGravado}"
-                           oninput="salvarLocalizacao('${item.tag}', '${item.setor.replace(/'/g, "\\'")}', this.value)"
-                           class="w-full p-2 border rounded text-sm focus:bg-yellow-50 outline-none focus:border-blue-400 shadow-inner">
+                    <p class="text-[10px] text-gray-500 font-mono mb-2">TAG: ${item.tag} | SN: ${item.sn}</p>
+                    <div class="flex gap-2">
+                        <input type="text" id="input-${item.tag}" placeholder="LEITO/OBS..." 
+                               value="${jaExiste ? jaExiste.LEITO : ''}"
+                               class="flex-1 p-2 border rounded text-xs focus:ring-2 focus:ring-blue-400 outline-none">
+                        <button onclick="confirmarAdicao('${item.tag}', '${item.setor}')" 
+                                class="bg-blue-600 text-white px-4 py-2 rounded text-xs font-bold hover:bg-blue-700 active:scale-90 transition-all">
+                            OK
+                        </button>
+                    </div>
                 `;
                 container.appendChild(div);
             });
         }
 
-        function salvarLocalizacao(tag, setorOrig, leito) {
-            const setorAtual = document.getElementById('filtroSetor').value || "Busca Global";
-            if (leito.trim() === "") { delete memoriaRonda[tag]; } 
-            else {
-                memoriaRonda[tag] = {
-                    TAG: tag, SETOR_ORIGINAL: setorOrig,
-                    SETOR_ENCONTRADO: setorAtual, LEITO: leito,
-                    DATA: new Date().toLocaleDateString()
-                };
+        function confirmarAdicao(tag, setorOrig) {
+            const leitoInput = document.getElementById(`input-${tag}`);
+            const leitoValor = leitoInput.value.trim().toUpperCase();
+            const setorAtual = document.getElementById('filtroSetor').value || "BUSCA GLOBAL";
+
+            if (!leitoValor) {
+                showToast("Informe o leito!", "bg-red-500");
+                return;
             }
-            atualizarContador();
+
+            // Adiciona ou Atualiza (sempre gera data nova)
+            memoriaRonda[tag] = {
+                TAG: tag.toUpperCase(),
+                SETOR_ORIGINAL: setorOrig.toUpperCase(),
+                SETOR_ENCONTRADO: setorAtual,
+                LEITO: leitoValor,
+                DATA: new Date().toLocaleDateString('pt-BR')
+            };
+
+            showToast(`ADICIONADO: ${tag}`, "bg-green-600");
+            atualizarTudo();
         }
 
-        function atualizarContador() {
-            document.getElementById('contador').textContent = `Itens anotados: ${Object.keys(memoriaRonda).length}`;
+        function renderizarListaColeta() {
+            const container = document.getElementById('listaColeta');
+            const itens = Object.values(memoriaRonda).reverse();
+            container.innerHTML = itens.length ? '' : '<p class="text-gray-400 text-sm italic text-center py-10">Lista de saída vazia.</p>';
+            
+            itens.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-2 bg-slate-50 border-b border-slate-200 flex justify-between items-center animate-in slide-in-from-right-2 duration-300";
+                div.innerHTML = `
+                    <div class="text-[10px]">
+                        <span class="font-bold text-blue-700">${item.TAG}</span> - 
+                        <span class="text-gray-600">${item.LEITO}</span>
+                        <p class="text-[8px] text-gray-400">${item.SETOR_ENCONTRADO} | ${item.DATA}</p>
+                    </div>
+                    <button onclick="removerItem('${item.TAG}')" class="text-red-400 hover:text-red-600 p-1 text-xs">✕</button>
+                `;
+                container.appendChild(div);
+            });
         }
 
+        function removerItem(tag) {
+            delete memoriaRonda[tag];
+            atualizarTudo();
+        }
+
+        function atualizarTudo() {
+            document.getElementById('contador').textContent = `Itens: ${Object.keys(memoriaRonda).length}`;
+            renderizarListaColeta();
+            // Mantém a lista de busca atualizada para mostrar a cor verde se já foi adicionado
+            const busca = document.getElementById('busca').value.toUpperCase();
+            const setor = document.getElementById('filtroSetor').value;
+            if (setor) renderizarListaBusca(bancoDados.filter(i => i.setor.toUpperCase() === setor));
+            else if (busca.length > 2) filtrarBusca();
+        }
+
+        function showToast(msg, cor) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `fixed bottom-5 right-5 text-white px-6 py-3 rounded-full shadow-2xl transition-all duration-300 font-bold text-sm z-50 ${cor} translate-y-0 opacity-100`;
+            setTimeout(() => {
+                t.className = t.className.replace('translate-y-0 opacity-100', 'translate-y-20 opacity-0');
+            }, 2500);
+        }
+
+        // EVENTOS
         document.getElementById('filtroSetor').addEventListener('change', (e) => {
-            renderizarLista(bancoDados.filter(item => item.setor === e.target.value));
+            document.getElementById('busca').value = "";
+            renderizarListaBusca(bancoDados.filter(item => item.setor.toUpperCase() === e.target.value));
         });
 
-        document.getElementById('busca').addEventListener('input', (e) => {
-            const termo = e.target.value.toUpperCase();
+        const filtrarBusca = () => {
+            const termo = document.getElementById('busca').value.toUpperCase();
             if(termo.length > 2) {
-                renderizarLista(bancoDados.filter(item => item.tag.includes(termo) || item.sn.includes(termo)));
+                renderizarListaBusca(bancoDados.filter(item => 
+                    item.tag.toUpperCase().includes(termo) || 
+                    item.sn.toUpperCase().includes(termo)
+                ));
             }
-        });
+        };
+        document.getElementById('busca').addEventListener('input', filtrarBusca);
 
         function exportarDados() {
             const lista = Object.values(memoriaRonda);
-            if (lista.length === 0) return alert("Vazio!");
-            // Usando PONTO E VÍRGULA (;) para evitar quebra em nomes como "CTI (I, II, III)"
+            if (lista.length === 0) return showToast("Lista vazia!", "bg-orange-500");
+            
             let csv = "\uFEFFTAG;SETOR_ORIGINAL;SETOR_ENCONTRADO;LEITO;DATA\n";
             lista.forEach(row => {
                 csv += `"${row.TAG}";"${row.SETOR_ORIGINAL}";"${row.SETOR_ENCONTRADO}";"${row.LEITO}";"${row.DATA}"\n`;
             });
+            
             const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = window.URL.createObjectURL(blob);
-            a.download = `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`;
+            a.href = url;
+            a.download = `ronda_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
+            showToast("Arquivo gerado!", "bg-blue-800");
         }
     </script>
 </body>
