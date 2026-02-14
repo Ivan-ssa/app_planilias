@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Modo Produção</title>
+    <title>Ronda Hospitalar - Inspeção por Setor</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input { text-transform: uppercase; }
@@ -19,11 +19,11 @@
         <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Entrada Rápida de Dados</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Inspeção e Coleta de Dados</p>
             </div>
             <div class="flex gap-4 items-center">
-                <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm" title="Novos nesta sessão">Sessão: 0</div>
-                <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm" title="Total no arquivo">Total: 0</div>
+                <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Sessão: 0</div>
+                <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Total: 0</div>
             </div>
         </div>
 
@@ -39,31 +39,42 @@
         </div>
 
         <div id="appBody" class="hidden">
+            <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Busca Parcial (TAG ou SN)</label>
+                    <input type="text" id="busca" placeholder="DIGITE QUALQUER PARTE..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar Setor da Ronda</label>
+                    <select id="filtroSetor" class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none">
+                        <option value="">TODOS OS SETORES...</option>
+                    </select>
+                </div>
+                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Limpar</button>
+            </div>
+
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
                 
-                <div class="bg-white rounded-xl shadow-md p-6 border-x border-b">
-                    <h2 class="text-xs font-black text-blue-600 uppercase mb-4 tracking-widest">🔍 Bipar Equipamento</h2>
-                    
-                    <div class="mb-6">
-                        <label class="text-[10px] font-bold text-slate-400 uppercase">Tag ou Número de Série</label>
-                        <input type="text" id="busca" placeholder="DIGITE E AGUARDE..." class="w-full p-4 rounded-xl bg-slate-100 border-2 border-transparent focus:border-blue-500 text-xl font-black outline-none transition-all">
-                    </div>
-
-                    <div id="resultadoBusca" class="min-h-[200px] border-t pt-4">
-                        <p class="text-slate-400 text-sm italic text-center py-10 uppercase font-bold">Aguardando busca...</p>
+                <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
+                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        🔍 Equipamentos para Inspeção
+                    </h2>
+                    <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione um setor ou use a busca</p>
                     </div>
                 </div>
 
-                <div class="bg-slate-50 rounded-xl shadow-md p-6 border-x border-b border-slate-200">
-                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest">✅ Novos Itens Adicionados Agora</h2>
-                    <div id="listaColeta" class="space-y-2 max-h-[440px] overflow-y-auto pr-2 mb-4">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado nesta sessão.</p>
+                <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200">
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        ✅ Itens Adicionados nesta Sessão
+                    </h2>
+                    <div id="listaColeta" class="space-y-2 max-h-[480px] overflow-y-auto pr-2 mb-4">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Lista de Coleta Vazia</p>
                     </div>
                     
                     <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
-                        📥 Finalizar e Baixar CSV Completo
+                        📥 Baixar CSV Completo
                     </button>
-                    <button onclick="window.location.reload()" class="w-full mt-4 text-red-400 text-[10px] font-bold uppercase underline">Reiniciar Sistema</button>
                 </div>
 
             </div>
@@ -75,7 +86,7 @@
     <script>
         let bancoDados = [];
         let memoriaRonda = {}; 
-        let itensNovosSessao = []; // LISTA PARA CONTROLAR O QUE É NOVO DESTA VEZ
+        let itensNovosSessao = [];
 
         // 1. CARREGAR JSON
         document.getElementById('arquivoJson').addEventListener('change', function(e) {
@@ -86,8 +97,9 @@
                     bancoDados = JSON.parse(event.target.result);
                     document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
                     document.getElementById('appBody').classList.remove('hidden');
-                    showToast("✅ BANCO CARREGADO", "bg-blue-600");
-                } catch(err) { alert("Erro no JSON!"); }
+                    popularSetores();
+                    showToast("✅ BASE CARREGADA", "bg-blue-600");
+                } catch(err) { alert("Erro ao ler JSON!"); }
             };
             reader.readAsText(e.target.files[0]);
         });
@@ -116,109 +128,116 @@
                     }
                 }
                 atualizarContadores();
-                showToast("♻️ PROGRESSO CARREGADO", "bg-green-600");
+                showToast("♻️ PROGRESSO RECUPERADO", "bg-green-600");
             };
             reader.readAsText(e.target.files[0]);
         });
 
-        // BUSCA (LADO ESQUERDO) - SÓ MOSTRA O ITEM ESPECÍFICO
-        const filtrarBusca = () => {
-            const termo = document.getElementById('busca').value.toUpperCase();
-            const container = document.getElementById('resultadoBusca');
-
-            if(termo.length > 2) {
-                const filtrados = bancoDados.filter(item => 
-                    item.tag.toUpperCase() === termo || item.sn.toUpperCase() === termo
-                );
-
-                if (filtrados.length > 0) {
-                    container.innerHTML = '';
-                    filtrados.forEach(item => {
-                        const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
-                        const div = document.createElement('div');
-                        div.className = "p-6 bg-blue-50 border-2 border-blue-200 rounded-2xl animate-in zoom-in-95 duration-200";
-                        div.innerHTML = `
-                            <div class="flex justify-between items-start mb-4">
-                                <div>
-                                    <p class="text-lg font-black text-slate-800 leading-tight">${item.nome.toUpperCase()}</p>
-                                    <p class="text-xs font-mono text-blue-600 uppercase">TAG: ${item.tag}</p>
-                                </div>
-                                <span class="text-[10px] px-3 py-1 rounded-full font-black uppercase ${statusClass}">${item.status}</span>
-                            </div>
-                            <div class="space-y-4">
-                                <div>
-                                    <label class="text-[10px] font-bold text-slate-400 uppercase">Leito / Localização</label>
-                                    <input type="text" id="in-leito" placeholder="EX: LEITO 10..." 
-                                           class="w-full p-4 border-2 rounded-xl text-lg font-black focus:border-green-500 outline-none shadow-sm">
-                                </div>
-                                <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
-                                        class="w-full bg-blue-600 text-white p-4 rounded-xl font-black hover:bg-blue-700 shadow-lg transition-all active:scale-95">
-                                    CONFIRMAR OK
-                                </button>
-                            </div>
-                        `;
-                        container.appendChild(div);
-                        document.getElementById('in-leito').focus();
-                    });
-                } else {
-                    container.innerHTML = '<p class="text-red-400 text-sm text-center py-10 uppercase font-bold">Equipamento não encontrado.</p>';
+        function popularSetores() {
+            const select = document.getElementById('filtroSetor');
+            select.innerHTML = '<option value="">TODOS OS SETORES...</option>';
+            const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
+            setores.forEach(setor => {
+                if(setor) {
+                    const opt = document.createElement('option');
+                    opt.value = setor.toUpperCase(); opt.textContent = setor.toUpperCase();
+                    select.appendChild(opt);
                 }
-            } else {
-                container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-10 uppercase font-bold">Aguardando busca...</p>';
-            }
-        };
+            });
+        }
 
-        function confirmarAcao(tag, setorOrig) {
-            const leitoInput = document.getElementById('in-leito');
-            const leitoValor = leitoInput.value.trim().toUpperCase();
+        // BUSCA PARCIAL E FILTRO DE SETOR (LADO ESQUERDO)
+        function renderizarLadoEsquerdo() {
+            const container = document.getElementById('listaEquipamentos');
+            const termo = document.getElementById('busca').value.toUpperCase();
+            const setorSel = document.getElementById('filtroSetor').value;
 
-            if (!leitoValor) {
-                showToast("⚠️ INFORME O LEITO!", "bg-red-500");
-                leitoInput.focus();
+            if (termo.length < 2 && !setorSel) {
+                container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione um setor ou digite para buscar</p>';
                 return;
             }
 
-            const novoRegistro = {
+            const filtrados = bancoDados.filter(item => {
+                const matchBusca = termo.length >= 2 ? (item.tag.toUpperCase().includes(termo) || item.sn.toUpperCase().includes(termo)) : true;
+                const matchSetor = setorSel ? item.setor.toUpperCase() === setorSel : true;
+                return matchBusca && matchSetor;
+            });
+
+            container.innerHTML = filtrados.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Nenhum equipamento encontrado</p>';
+            
+            filtrados.forEach(item => {
+                const jaFezNestaSessao = itensNovosSessao.some(i => i.TAG === item.tag.toUpperCase());
+                if (jaFezNestaSessao) return; // Não mostra na esquerda o que já foi adicionado agora
+
+                const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
+                const div = document.createElement('div');
+                div.className = "p-4 bg-white border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 border-l-blue-400";
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-xs font-black text-slate-800 leading-tight">${item.nome.toUpperCase()}</p>
+                            <p class="text-[10px] font-mono text-slate-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
+                        </div>
+                        <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase ${statusClass}">${item.status}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="in-leito-${item.tag}" placeholder="LEITO..." 
+                               class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-blue-500">
+                        <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
+                                class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700 transition-all">
+                            OK
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function confirmarAcao(tag, setorOrig) {
+            const inputLeito = document.getElementById(`in-leito-${tag}`);
+            const leitoValor = inputLeito.value.trim().toUpperCase();
+            const setorRonda = document.getElementById('filtroSetor').value || "GERAL";
+
+            if (!leitoValor) {
+                showToast("⚠️ INFORME O LEITO!", "bg-red-500");
+                inputLeito.focus();
+                return;
+            }
+
+            const registro = {
                 TAG: tag.toUpperCase(),
                 SETOR_ORIGINAL: setorOrig.toUpperCase(),
-                SETOR_ENCONTRADO: "RONDA ATUAL",
+                SETOR_ENCONTRADO: setorRonda,
                 LEITO: leitoValor,
                 DATA: new Date().toLocaleDateString('pt-BR')
             };
 
-            // Salva na memória geral (para o CSV)
-            memoriaRonda[tag.toUpperCase()] = novoRegistro;
+            // Salva na memória global
+            memoriaRonda[tag.toUpperCase()] = registro;
             
-            // Adiciona na lista da SESSÃO (para aparecer na direita)
-            // Se já existir na sessão, removemos o antigo para o novo ficar no topo
-            itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag.toUpperCase());
-            itensNovosSessao.unshift(novoRegistro);
+            // Adiciona ao Log da Sessão (Direita)
+            itensNovosSessao.unshift(registro);
 
-            showToast(`✅ ${tag} REGISTRADO`, "bg-slate-800");
+            showToast(`✅ ${tag} OK`, "bg-slate-800");
             
-            // LIMPA BUSCA E LADO ESQUERDO PARA O PRÓXIMO
-            document.getElementById('busca').value = "";
-            document.getElementById('resultadoBusca').innerHTML = '<p class="text-green-500 text-sm text-center py-10 uppercase font-black">Pronto para o próximo!</p>';
-            document.getElementById('busca').focus();
-
             atualizarContadores();
             renderizarLogSessao();
+            renderizarLadoEsquerdo(); // Recarrega a esquerda para "sumir" com o item feito
         }
 
-        // RENDERIZA APENAS O QUE FOI FEITO NESTA SESSÃO (DIREITA)
         function renderizarLogSessao() {
             const container = document.getElementById('listaColeta');
-            container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item nesta sessão.</p>';
+            container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado ainda.</p>';
             
             itensNovosSessao.forEach(item => {
                 const div = document.createElement('div');
-                div.className = "p-4 bg-white border border-slate-200 rounded-xl shadow-sm mb-2 flex justify-between items-center animate-in slide-in-from-right-4";
+                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2 animate-in slide-in-from-right-4";
                 div.innerHTML = `
-                    <div>
-                        <span class="text-[10px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span>
-                        <p class="text-xs font-bold text-slate-700 uppercase mt-1">LEITO: ${item.LEITO}</p>
+                    <div class="flex-1">
+                        <span class="text-[9px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span>
+                        <p class="text-[10px] font-bold text-slate-700 uppercase mt-1">L: ${item.LEITO} | <span class="text-slate-400 font-normal">${item.SETOR_ENCONTRADO}</span></p>
                     </div>
-                    <span class="text-[9px] text-slate-300 font-bold">${item.DATA}</span>
+                    <span class="text-[8px] text-slate-300 font-bold">${item.DATA}</span>
                 `;
                 container.appendChild(div);
             });
@@ -238,7 +257,8 @@
             }, 2000);
         }
 
-        document.getElementById('busca').addEventListener('input', filtrarBusca);
+        document.getElementById('busca').addEventListener('input', renderizarLadoEsquerdo);
+        document.getElementById('filtroSetor').addEventListener('change', renderizarLadoEsquerdo);
 
         function exportarDados() {
             const lista = Object.values(memoriaRonda);
@@ -251,7 +271,7 @@
             const url = window.URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `ronda_completa_${new Date().toISOString().slice(0,10)}.csv`;
+            a.download = `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`;
             a.click();
         }
     </script>
