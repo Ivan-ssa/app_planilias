@@ -1,10 +1,9 @@
-<!--- Versão 3 --->
 <!DOCTYPE html>
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Inspeção Ativa</title>
+    <title>Ronda de Manutenção - Log de Novos Itens</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input { text-transform: uppercase; }
@@ -12,6 +11,11 @@
         .status-inativo { background-color: #fee2e2; color: #991b1b; border: 1px solid #991b1b; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+        .item-novo { animation: highlight 1s ease-out; }
+        @keyframes highlight {
+            0% { background-color: #fef08a; }
+            100% { background-color: white; }
+        }
     </style>
 </head>
 <body class="bg-slate-100 p-2 sm:p-4 font-sans text-slate-800">
@@ -20,7 +24,7 @@
         <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo de Inspeção e Integridade</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Visualização de Novos Itens</p>
             </div>
             <div id="contador" class="bg-blue-600 text-white px-6 py-2 rounded-full font-black text-lg shadow-inner">0</div>
         </div>
@@ -46,246 +50,28 @@
                         <option value="">FILTRAR POR SETOR...</option>
                     </select>
                 </div>
-                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Limpar Tudo</button>
+                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Reiniciar</button>
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
                 
                 <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
-                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        🔍 Localizar Equipamento
-                    </h2>
+                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">🔍 Localizar Equipamento</h2>
                     <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase">Aguardando busca ou setor...</p>
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Aguardando busca ou setor...</p>
                     </div>
                 </div>
 
                 <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200">
-                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        📋 Itens na Lista (Prontos para Salvar)
-                    </h2>
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest">✅ Novos Itens nesta Ronda</h2>
                     <div id="listaColeta" class="space-y-2 max-h-[480px] overflow-y-auto pr-2 mb-4">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase">Nenhum item coletado</p>
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30">Nenhum item adicionado ainda</p>
                     </div>
                     
-                    <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase tracking-tighter">
-                        <span class="text-xl">📥</span> Finalizar Ronda e Gerar CSV
+                    <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
+                        📥 Finalizar e Baixar CSV
                     </button>
                 </div>
             </div>
         </div>
     </div>
-
-    <div id="toast" class="fixed bottom-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
-
-    <script>
-        let bancoDados = [];
-        let memoriaRonda = {}; 
-
-        // CARREGAR JSON
-        document.getElementById('arquivoJson').addEventListener('change', function(e) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                try {
-                    bancoDados = JSON.parse(event.target.result);
-                    document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
-                    document.getElementById('appBody').classList.remove('hidden');
-                    popularSetores();
-                    showToast("✅ BANCO CARREGADO", "bg-blue-600");
-                } catch(e) { alert("Erro ao ler JSON!"); }
-            };
-            reader.readAsText(e.target.files[0]);
-        });
-
-        // RESTAURAR CSV
-        document.getElementById('arquivoCsvProgresso').addEventListener('change', function(e) {
-            const reader = new FileReader();
-            reader.onload = function(event) {
-                const linhas = event.target.result.split('\n');
-                let restaurados = 0;
-                for (let i = 1; i < linhas.length; i++) {
-                    let linha = linhas[i].trim();
-                    if (!linha) continue;
-                    const col = linha.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g) || [];
-                    const limpar = (s) => s ? s.replace(/^"|"$/g, '').trim().toUpperCase() : "";
-
-                    if (col.length >= 4) {
-                        const tag = limpar(col[0]);
-                        memoriaRonda[tag] = {
-                            TAG: tag,
-                            SETOR_ORIGINAL: limpar(col[1]),
-                            SETOR_ENCONTRADO: limpar(col[2]),
-                            LEITO: limpar(col[3]),
-                            DATA: limpar(col[4]) || new Date().toLocaleDateString('pt-BR')
-                        };
-                        restaurados++;
-                    }
-                }
-                atualizarTudo();
-                showToast(`♻️ ${restaurados} ITENS RECUPERADOS`, "bg-green-600");
-            };
-            reader.readAsText(e.target.files[0]);
-        });
-
-        function popularSetores() {
-            const select = document.getElementById('filtroSetor');
-            select.innerHTML = '<option value="">FILTRAR POR SETOR...</option>';
-            const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
-            setores.forEach(setor => {
-                if(setor) {
-                    const opt = document.createElement('option');
-                    opt.value = setor.toUpperCase(); opt.textContent = setor.toUpperCase();
-                    select.appendChild(opt);
-                }
-            });
-        }
-
-        function renderizarListaBusca(itens) {
-            const container = document.getElementById('listaEquipamentos');
-            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase">Sem resultados</p>';
-            
-            itens.forEach(item => {
-                const jaColetado = memoriaRonda[item.tag.toUpperCase()];
-                const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
-                
-                const div = document.createElement('div');
-                div.className = `p-4 border-l-4 ${jaColetado ? 'border-blue-600 bg-blue-50' : 'border-slate-300 bg-white'} rounded shadow-sm border transition-all`;
-                div.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <p class="text-sm font-black text-slate-800">${item.nome.toUpperCase()}</p>
-                            <p class="text-[10px] font-mono text-slate-500">TAG: ${item.tag} | SN: ${item.sn}</p>
-                        </div>
-                        <span class="text-[9px] px-3 py-1 rounded-full font-bold uppercase ${statusClass}">${item.status}</span>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="in-busca-${item.tag}" placeholder="LEITO / OBSERVAÇÃO..." 
-                               value="${jaColetado ? jaColetado.LEITO : ''}"
-                               class="flex-1 p-2 border-2 rounded text-xs font-bold focus:border-blue-500 outline-none">
-                        <button onclick="confirmarAcao('${item.tag}', '${item.setor}', 'busca')" 
-                                class="bg-blue-600 text-white px-5 py-2 rounded text-xs font-black hover:bg-blue-700 active:scale-90 transition-all">
-                            OK
-                        </button>
-                    </div>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function renderizarListaColeta() {
-            const container = document.getElementById('listaColeta');
-            const itens = Object.values(memoriaRonda).reverse(); // Recentes primeiro
-            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30">Vazio</p>';
-            
-            itens.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm animate-in slide-in-from-right-4 duration-300";
-                div.innerHTML = `
-                    <div class="flex justify-between items-center mb-2">
-                        <span class="text-[10px] font-black text-blue-800 bg-blue-50 px-2 py-0.5 rounded">TAG: ${item.TAG}</span>
-                        <div class="flex gap-2 items-center">
-                            <span class="text-[9px] text-slate-400 font-bold">${item.DATA}</span>
-                            <button onclick="removerItem('${item.TAG}')" class="text-red-400 hover:text-red-600 text-xs px-1">✕</button>
-                        </div>
-                    </div>
-                    <div class="flex gap-2">
-                        <input type="text" id="in-lista-${item.TAG}" value="${item.LEITO}" 
-                               class="flex-1 p-2 bg-slate-50 border rounded text-xs font-bold focus:bg-yellow-50 outline-none">
-                        <button onclick="confirmarAcao('${item.TAG}', '${item.SETOR_ORIGINAL}', 'lista')" 
-                                class="bg-slate-800 text-white px-3 py-2 rounded text-[10px] font-black hover:bg-black transition-all">
-                            ALTERAR
-                        </button>
-                    </div>
-                    <p class="text-[8px] text-slate-400 uppercase mt-1 font-bold">Local: ${item.SETOR_ENCONTRADO}</p>
-                `;
-                container.appendChild(div);
-            });
-        }
-
-        function confirmarAcao(tag, setorOrig, origem) {
-            const inputId = origem === 'busca' ? `in-busca-${tag}` : `in-lista-${tag}`;
-            const leitoValor = document.getElementById(inputId).value.trim().toUpperCase();
-            const setorAtual = document.getElementById('filtroSetor').value || "BUSCA GLOBAL";
-
-            if (!leitoValor) {
-                showToast("⚠️ INFORME O LEITO!", "bg-red-500");
-                return;
-            }
-
-            // Atualiza memória com Data Atualizada SEMPRE
-            memoriaRonda[tag.toUpperCase()] = {
-                TAG: tag.toUpperCase(),
-                SETOR_ORIGINAL: setorOrig.toUpperCase(),
-                SETOR_ENCONTRADO: setorAtual,
-                LEITO: leitoValor,
-                DATA: new Date().toLocaleDateString('pt-BR')
-            };
-
-            showToast(`✅ REGISTRADO: ${tag}`, "bg-slate-800");
-            atualizarTudo();
-        }
-
-        function removerItem(tag) {
-            if(confirm(`REMOVER ${tag} DA LISTA?`)) {
-                delete memoriaRonda[tag];
-                atualizarTudo();
-            }
-        }
-
-        function atualizarTudo() {
-            document.getElementById('contador').textContent = Object.keys(memoriaRonda).length;
-            renderizarListaColeta();
-            
-            // Refiltra a busca se houver algo digitado ou selecionado
-            const busca = document.getElementById('busca').value.toUpperCase();
-            const setor = document.getElementById('filtroSetor').value;
-            if (setor) renderizarListaBusca(bancoDados.filter(i => i.setor.toUpperCase() === setor));
-            else if (busca.length > 2) filtrarBusca();
-        }
-
-        function showToast(msg, cor) {
-            const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all duration-300 font-black text-sm z-50 ${cor} translate-y-0 opacity-100`;
-            setTimeout(() => {
-                t.className = t.className.replace('translate-y-0 opacity-100', 'translate-y-32 opacity-0');
-            }, 2000);
-        }
-
-        // EVENTOS
-        document.getElementById('filtroSetor').addEventListener('change', (e) => {
-            document.getElementById('busca').value = "";
-            renderizarListaBusca(bancoDados.filter(item => item.setor.toUpperCase() === e.target.value));
-        });
-
-        const filtrarBusca = () => {
-            const termo = document.getElementById('busca').value.toUpperCase();
-            if(termo.length > 2) {
-                renderizarListaBusca(bancoDados.filter(item => 
-                    item.tag.toUpperCase().includes(termo) || 
-                    item.sn.toUpperCase().includes(termo)
-                ));
-            }
-        };
-        document.getElementById('busca').addEventListener('input', filtrarBusca);
-
-        function exportarDados() {
-            const lista = Object.values(memoriaRonda);
-            if (lista.length === 0) return showToast("❌ LISTA VAZIA!", "bg-orange-500");
-            
-            let csv = "\uFEFFTAG;SETOR_ORIGINAL;SETOR_ENCONTRADO;LEITO;DATA\n";
-            lista.forEach(row => {
-                csv += `"${row.TAG}";"${row.SETOR_ORIGINAL}";"${row.SETOR_ENCONTRADO}";"${row.LEITO}";"${row.DATA}"\n`;
-            });
-            
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = window.URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `ronda_${new Date().toISOString().slice(0,10)}.csv`;
-            a.click();
-            showToast("💾 ARQUIVO CSV GERADO!", "bg-green-700");
-        }
-    </script>
-</body>
-</html>
