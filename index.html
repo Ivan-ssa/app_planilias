@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda de Manutenção - Log de Novos Itens</title>
+    <title>Ronda de Manutenção - Corrigido</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input { text-transform: uppercase; }
@@ -11,11 +11,6 @@
         .status-inativo { background-color: #fee2e2; color: #991b1b; border: 1px solid #991b1b; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
-        .item-novo { animation: highlight 1s ease-out; }
-        @keyframes highlight {
-            0% { background-color: #fef08a; }
-            100% { background-color: white; }
-        }
     </style>
 </head>
 <body class="bg-slate-100 p-2 sm:p-4 font-sans text-slate-800">
@@ -24,7 +19,7 @@
         <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Visualização de Novos Itens</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo de Inspeção</p>
             </div>
             <div id="contador" class="bg-blue-600 text-white px-6 py-2 rounded-full font-black text-lg shadow-inner">0</div>
         </div>
@@ -32,11 +27,11 @@
         <div id="setup" class="bg-white p-4 rounded-xl shadow-sm mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 border border-blue-100">
             <div>
                 <label class="text-[10px] font-bold text-blue-700 uppercase">1. Importar Base (JSON)</label>
-                <input type="file" id="arquivoJson" accept=".json" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1">
+                <input type="file" id="arquivoJson" accept=".json" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
             </div>
-            <div id="passo2" class="opacity-30 pointer-events-none transition-opacity">
-                <label class="text-[10px] font-bold text-green-700 uppercase">2. Continuar Anterior (CSV)</label>
-                <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1">
+            <div id="passo2" class="opacity-30 pointer-events-none transition-all duration-500">
+                <label class="text-[10px] font-bold text-green-700 uppercase">2. Continuar Anterior (CSV) - Opcional</label>
+                <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
             </div>
         </div>
 
@@ -54,20 +49,18 @@
             </div>
 
             <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
-                
                 <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
-                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">🔍 Localizar Equipamento</h2>
-                    <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Aguardando busca ou setor...</p>
+                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest">🔍 Localizar</h2>
+                    <div id="listaEquipamentos" class="space-y-3 max-h-[500px] overflow-y-auto pr-2">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold">Selecione um arquivo JSON acima.</p>
                     </div>
                 </div>
 
                 <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200">
-                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest">✅ Novos Itens nesta Ronda</h2>
-                    <div id="listaColeta" class="space-y-2 max-h-[480px] overflow-y-auto pr-2 mb-4">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30">Nenhum item adicionado ainda</p>
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest">✅ Itens Registrados</h2>
+                    <div id="listaColeta" class="space-y-2 max-h-[430px] overflow-y-auto pr-2 mb-4">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
                     </div>
-                    
                     <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
                         📥 Finalizar e Baixar CSV
                     </button>
@@ -75,3 +68,210 @@
             </div>
         </div>
     </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
+
+    <script>
+        let bancoDados = [];
+        let memoriaRonda = {}; 
+
+        // 1. CARREGAR JSON - LIBERA O PASSO 2 E O APP
+        document.getElementById('arquivoJson').addEventListener('change', function(e) {
+            if (!e.target.files[0]) return;
+            
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    bancoDados = JSON.parse(event.target.result);
+                    
+                    // LIBERAÇÃO DOS CAMPOS
+                    document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
+                    document.getElementById('appBody').classList.remove('hidden');
+                    
+                    popularSetores();
+                    showToast("✅ BANCO CARREGADO", "bg-blue-600");
+                } catch(err) {
+                    alert("Erro ao ler o arquivo JSON. Verifique a formatação.");
+                }
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        // 2. RESTAURAR CSV
+        document.getElementById('arquivoCsvProgresso').addEventListener('change', function(e) {
+            if (!e.target.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const linhas = event.target.result.split('\n');
+                let count = 0;
+                for (let i = 1; i < linhas.length; i++) {
+                    let linha = linhas[i].trim();
+                    if (!linha) continue;
+                    const col = linha.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g) || [];
+                    const limpar = (s) => s ? s.replace(/^"|"$/g, '').trim().toUpperCase() : "";
+
+                    if (col.length >= 4) {
+                        const tag = limpar(col[0]);
+                        memoriaRonda[tag] = {
+                            TAG: tag,
+                            SETOR_ORIGINAL: limpar(col[1]),
+                            SETOR_ENCONTRADO: limpar(col[2]),
+                            LEITO: limpar(col[3]),
+                            DATA: limpar(col[4]) || new Date().toLocaleDateString('pt-BR')
+                        };
+                        count++;
+                    }
+                }
+                atualizarTudo();
+                showToast(`♻️ ${count} ITENS RECUPERADOS`, "bg-green-600");
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        function popularSetores() {
+            const select = document.getElementById('filtroSetor');
+            select.innerHTML = '<option value="">FILTRAR POR SETOR...</option>';
+            const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
+            setores.forEach(setor => {
+                if(setor) {
+                    const opt = document.createElement('option');
+                    opt.value = setor.toUpperCase(); opt.textContent = setor.toUpperCase();
+                    select.appendChild(opt);
+                }
+            });
+        }
+
+        function renderizarListaBusca(itens) {
+            const container = document.getElementById('listaEquipamentos');
+            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Sem resultados</p>';
+            
+            itens.forEach(item => {
+                const jaColetado = memoriaRonda[item.tag.toUpperCase()];
+                const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
+                
+                const div = document.createElement('div');
+                div.className = `p-4 border-l-4 ${jaColetado ? 'border-green-600 bg-green-50' : 'border-slate-300 bg-white'} rounded shadow-sm border transition-all`;
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-sm font-black text-slate-800">${item.nome.toUpperCase()}</p>
+                            <p class="text-[10px] font-mono text-slate-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
+                        </div>
+                        <span class="text-[9px] px-3 py-1 rounded-full font-bold uppercase ${statusClass}">${item.status}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="in-busca-${item.tag}" placeholder="LEITO..." 
+                               value="${jaColetado ? jaColetado.LEITO : ''}"
+                               class="flex-1 p-2 border-2 rounded text-xs font-bold focus:border-blue-500 outline-none">
+                        <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
+                                class="bg-blue-600 text-white px-5 py-2 rounded text-xs font-black hover:bg-blue-700 transition-all">
+                            OK
+                        </button>
+                    </div>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function renderizarLogNovosItens() {
+            const container = document.getElementById('listaColeta');
+            const itens = Object.values(memoriaRonda).reverse(); 
+            container.innerHTML = itens.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>';
+            
+            itens.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2";
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <div class="flex items-center gap-2">
+                            <span class="text-xs font-black text-blue-800 uppercase">${item.TAG}</span>
+                            <span class="text-[9px] text-green-600 font-bold bg-green-50 px-1 rounded border border-green-100">${item.DATA}</span>
+                        </div>
+                        <p class="text-[11px] font-bold text-slate-700 uppercase">📍 LEITO: ${item.LEITO}</p>
+                    </div>
+                    <button onclick="removerItem('${item.TAG}')" class="text-slate-300 hover:text-red-500 px-2">✕</button>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function confirmarAcao(tag, setorOrig) {
+            const inputId = `in-busca-${tag}`;
+            const inputElem = document.getElementById(inputId);
+            const leitoValor = inputElem.value.trim().toUpperCase();
+            const setorAtual = document.getElementById('filtroSetor').value || "BUSCA GLOBAL";
+
+            if (!leitoValor) {
+                showToast("⚠️ INFORME O LEITO!", "bg-red-500");
+                inputElem.focus();
+                return;
+            }
+
+            memoriaRonda[tag.toUpperCase()] = {
+                TAG: tag.toUpperCase(),
+                SETOR_ORIGINAL: setorOrig.toUpperCase(),
+                SETOR_ENCONTRADO: setorAtual,
+                LEITO: leitoValor,
+                DATA: new Date().toLocaleDateString('pt-BR')
+            };
+
+            showToast(`REGISTRADO: ${tag}`, "bg-slate-800");
+            atualizarTudo();
+        }
+
+        function removerItem(tag) {
+            delete memoriaRonda[tag.toUpperCase()];
+            atualizarTudo();
+        }
+
+        function atualizarTudo() {
+            document.getElementById('contador').textContent = Object.keys(memoriaRonda).length;
+            renderizarLogNovosItens();
+            const busca = document.getElementById('busca').value.toUpperCase();
+            const setor = document.getElementById('filtroSetor').value;
+            if (setor) renderizarListaBusca(bancoDados.filter(i => i.setor.toUpperCase() === setor));
+            else if (busca.length > 2) filtrarBusca();
+        }
+
+        function showToast(msg, cor) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all duration-300 font-black text-sm z-50 ${cor} translate-y-0 opacity-100`;
+            setTimeout(() => {
+                t.className = t.className.replace('translate-y-0 opacity-100', 'translate-y-32 opacity-0');
+            }, 2000);
+        }
+
+        document.getElementById('filtroSetor').addEventListener('change', (e) => {
+            document.getElementById('busca').value = "";
+            renderizarListaBusca(bancoDados.filter(item => item.setor.toUpperCase() === e.target.value));
+        });
+
+        const filtrarBusca = () => {
+            const termo = document.getElementById('busca').value.toUpperCase();
+            if(termo.length > 2) {
+                renderizarListaBusca(bancoDados.filter(item => 
+                    item.tag.toUpperCase().includes(termo) || 
+                    item.sn.toUpperCase().includes(termo)
+                ));
+            }
+        };
+        document.getElementById('busca').addEventListener('input', filtrarBusca);
+
+        function exportarDados() {
+            const lista = Object.values(memoriaRonda);
+            if (lista.length === 0) return showToast("❌ LISTA VAZIA!", "bg-orange-500");
+            let csv = "\uFEFFTAG;SETOR_ORIGINAL;SETOR_ENCONTRADO;LEITO;DATA\n";
+            lista.forEach(row => {
+                csv += `"${row.TAG}";"${row.SETOR_ORIGINAL}";"${row.SETOR_ENCONTRADO}";"${row.LEITO}";"${row.DATA}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ronda_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+    </script>
+</body>
+</html>
