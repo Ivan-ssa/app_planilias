@@ -209,6 +209,19 @@
             a.setAttribute('download', `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`);
             a.click();
         }
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+            .then(() => console.log("Service Worker Registrado!"))
+            .catch((err) => console.log("Erro no SW:", err));
+        }
+
+        // Lógica para capturar o evento de instalação e talvez criar um botão customizado
+        let installPrompt;
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            installPrompt = e;
+            // Aqui você poderia mostrar um botão "Instalar App" se quisesse
+        });
     </script>
 </body>
 </html>
