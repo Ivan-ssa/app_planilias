@@ -1,0 +1,17 @@
+{
+  "name": "Ronda Hospitalar",
+  "short_name": "Ronda",
+  "description": "Sistema de Inspeção e Ronda de Manutenção Hospitalar",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#1e3a8a",
+  "theme_color": "#1e3a8a",
+  "icons": [
+    {
+      "src": "icon-512.jpg",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
