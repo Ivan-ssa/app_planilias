@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda Hospitalar - Busca Inteligente</title>
+    <title>Ronda Hospitalar - Histórico de Leitos</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         input { text-transform: uppercase; }
@@ -19,7 +19,7 @@
         <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
             <div>
                 <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo de Inspeção</p>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Histórico de Localização Ativo</p>
             </div>
             <div class="flex gap-4 items-center">
                 <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Sessão: 0</div>
@@ -42,7 +42,7 @@
             <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
                 <div class="flex-1 min-w-[200px]">
                     <label class="text-[9px] text-white/70 font-bold uppercase">Busca Global (TAG ou SN)</label>
-                    <input type="text" id="busca" placeholder="PROCURAR EM QUALQUER LUGAR..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
+                    <input type="text" id="busca" placeholder="PROCURAR TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
                 </div>
                 <div class="flex-1 min-w-[200px]">
                     <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar Setor</label>
@@ -66,13 +66,13 @@
 
                 <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200">
                     <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        ✅ Itens Adicionados agora
+                        ✅ Novos nesta Ronda
                     </h2>
                     <div id="listaColeta" class="space-y-2 max-h-[480px] overflow-y-auto pr-2 mb-4">
                         <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
                     </div>
                     <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
-                        📥 Baixar CSV Completo
+                        📥 Baixar CSV Atualizado
                     </button>
                 </div>
             </div>
@@ -123,6 +123,7 @@
                     }
                 }
                 atualizarContadores();
+                renderizarLadoEsquerdo(); // Atualiza a visão para mostrar os leitos carregados
                 showToast("♻️ PROGRESSO RECUPERADO", "bg-green-600");
             };
             reader.readAsText(e.target.files[0]);
@@ -146,34 +147,29 @@
             const termo = document.getElementById('busca').value.toUpperCase();
             const setorSel = document.getElementById('filtroSetor').value;
 
-            // Se nada for digitado e nenhum setor escolhido, limpa a tela
             if (termo.length < 2 && !setorSel) {
                 container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione um setor ou use a busca global</p>';
                 return;
             }
 
             const filtrados = bancoDados.filter(item => {
-                const matchBusca = termo.length >= 2 ? (item.tag.toUpperCase().includes(termo) || item.sn.toUpperCase().includes(termo)) : false;
-                
-                // Lógica Inteligente:
-                // Se o usuário digitou algo (matchBusca), ele ignora o filtro de setor (Busca Global)
-                // Se o usuário NÃO digitou nada, ele usa apenas o filtro de setor.
-                if (termo.length >= 2) {
-                    return matchBusca;
-                } else {
-                    return setorSel ? item.setor.toUpperCase() === setorSel : false;
-                }
+                if (termo.length >= 2) return (item.tag.toUpperCase().includes(termo) || item.sn.toUpperCase().includes(termo));
+                return setorSel ? item.setor.toUpperCase() === setorSel : false;
             });
 
-            container.innerHTML = filtrados.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Nenhum equipamento encontrado nesta busca</p>';
+            container.innerHTML = filtrados.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Nenhum equipamento encontrado</p>';
             
             filtrados.forEach(item => {
-                const jaFezNestaSessao = itensNovosSessao.some(i => i.TAG === item.tag.toUpperCase());
-                if (jaFezNestaSessao) return;
-
+                // VERIFICA SE JÁ EXISTE NO HISTÓRICO (CSV OU SESSÃO)
+                const registroExistente = memoriaRonda[item.tag.toUpperCase()];
+                const jaFezAgora = itensNovosSessao.some(i => i.TAG === item.tag.toUpperCase());
+                
                 const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
+                
                 const div = document.createElement('div');
-                div.className = "p-4 bg-white border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 border-l-blue-400";
+                // Se já foi registrado, ganha uma borda verde e um fundo leve
+                div.className = `p-4 border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 ${registroExistente ? 'border-l-green-500 bg-green-50/50' : 'border-l-blue-400 bg-white'}`;
+                
                 div.innerHTML = `
                     <div class="flex justify-between items-start mb-2">
                         <div>
@@ -184,9 +180,16 @@
                         <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase ${statusClass}">${item.status}</span>
                     </div>
                     <div class="flex gap-2">
-                        <input type="text" id="in-leito-${item.tag}" placeholder="LEITO..." class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-blue-500">
-                        <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700">OK</button>
+                        <input type="text" id="in-leito-${item.tag}" 
+                               placeholder="${registroExistente ? 'LEITO: ' + registroExistente.LEITO : 'DIGITE O LEITO...'}" 
+                               value="${registroExistente ? registroExistente.LEITO : ''}"
+                               class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-green-500 bg-white">
+                        <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
+                                class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700 transition-all">
+                            OK
+                        </button>
                     </div>
+                    ${registroExistente ? `<p class="text-[8px] text-green-600 font-bold mt-1">ÚLTIMO REGISTRO: ${registroExistente.DATA} em ${registroExistente.SETOR_ENCONTRADO}</p>` : ''}
                 `;
                 container.appendChild(div);
             });
@@ -195,7 +198,7 @@
         function confirmarAcao(tag, setorOrig) {
             const inputLeito = document.getElementById(`in-leito-${tag}`);
             const leitoValor = inputLeito.value.trim().toUpperCase();
-            const setorRonda = document.getElementById('filtroSetor').value || "GERAL";
+            const setorRonda = document.getElementById('filtroSetor').value || "BUSCA GLOBAL";
 
             if (!leitoValor) {
                 showToast("⚠️ INFORME O LEITO!", "bg-red-500");
@@ -212,8 +215,17 @@
             };
 
             memoriaRonda[tag.toUpperCase()] = registro;
-            itensNovosSessao.unshift(registro);
-            showToast(`✅ ${tag} OK`, "bg-slate-800");
+            
+            // Adiciona na lista da direita se não estiver lá
+            if (!itensNovosSessao.some(i => i.TAG === tag.toUpperCase())) {
+                itensNovosSessao.unshift(registro);
+            } else {
+                // Se já estava, atualiza a posição e os dados
+                itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag.toUpperCase());
+                itensNovosSessao.unshift(registro);
+            }
+
+            showToast(`✅ ${tag} ATUALIZADO`, "bg-slate-800");
             atualizarContadores();
             renderizarLogSessao();
             renderizarLadoEsquerdo();
@@ -251,11 +263,7 @@
         }
 
         document.getElementById('busca').addEventListener('input', renderizarLadoEsquerdo);
-        document.getElementById('filtroSetor').addEventListener('change', () => {
-            // Se mudar o setor, limpa a busca para focar na lista do setor
-            document.getElementById('busca').value = "";
-            renderizarLadoEsquerdo();
-        });
+        document.getElementById('filtroSetor').addEventListener('change', renderizarLadoEsquerdo);
 
         function exportarDados() {
             const lista = Object.values(memoriaRonda);
