@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ronda Hospitalar - Histórico de Leitos</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        input { text-transform: uppercase; }
+        .status-ativo { background-color: #dcfce7; color: #166534; border: 1px solid #166534; }
+        .status-inativo { background-color: #fee2e2; color: #991b1b; border: 1px solid #991b1b; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
+</head>
+<body class="bg-slate-100 p-2 sm:p-4 font-sans text-slate-800">
+    <div class="max-w-7xl mx-auto">
+        
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Histórico de Localização Ativo</p>
+            </div>
+            <div class="flex gap-4 items-center">
+                <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Sessão: 0</div>
+                <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Total: 0</div>
+            </div>
+        </div>
+
+        <div id="setup" class="bg-white p-4 rounded-xl shadow-sm mb-4 grid grid-cols-1 md:grid-cols-2 gap-4 border border-blue-100">
+            <div>
+                <label class="text-[10px] font-bold text-blue-700 uppercase">1. Importar Base (JSON)</label>
+                <input type="file" id="arquivoJson" accept=".json" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
+            </div>
+            <div id="passo2" class="opacity-30 pointer-events-none transition-all duration-500">
+                <label class="text-[10px] font-bold text-green-700 uppercase">2. Restaurar Progresso (CSV)</label>
+                <input type="file" id="arquivoCsvProgresso" accept=".csv" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
+            </div>
+        </div>
+
+        <div id="appBody" class="hidden">
+            <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Busca Global (TAG ou SN)</label>
+                    <input type="text" id="busca" placeholder="PROCURAR TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar Setor</label>
+                    <select id="filtroSetor" class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none">
+                        <option value="">TODOS OS SETORES...</option>
+                    </select>
+                </div>
+                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Limpar</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
+                
+                <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
+                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        🔍 Equipamentos Encontrados
+                    </h2>
+                    <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione um setor ou use a busca</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200">
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        ✅ Novos nesta Ronda
+                    </h2>
+                    <div id="listaColeta" class="space-y-2 max-h-[480px] overflow-y-auto pr-2 mb-4">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
+                    </div>
+                    <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
+                        📥 Baixar CSV Atualizado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
+
+    <script>
+        let bancoDados = [];
+        let memoriaRonda = {}; 
+        let itensNovosSessao = [];
+
+        document.getElementById('arquivoJson').addEventListener('change', function(e) {
+            if (!e.target.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    bancoDados = JSON.parse(event.target.result);
+                    document.getElementById('passo2').classList.remove('opacity-30', 'pointer-events-none');
+                    document.getElementById('appBody').classList.remove('hidden');
+                    popularSetores();
+                    showToast("✅ BASE CARREGADA", "bg-blue-600");
+                } catch(err) { alert("Erro ao ler JSON!"); }
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        document.getElementById('arquivoCsvProgresso').addEventListener('change', function(e) {
+            if (!e.target.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                const linhas = event.target.result.split('\n');
+                for (let i = 1; i < linhas.length; i++) {
+                    let linha = linhas[i].trim();
+                    if (!linha) continue;
+                    const col = linha.match(/(".*?"|[^;]+)(?=\s*;|\s*$)/g) || [];
+                    const limpar = (s) => s ? s.replace(/^"|"$/g, '').trim().toUpperCase() : "";
+                    if (col.length >= 4) {
+                        const tag = limpar(col[0]);
+                        memoriaRonda[tag] = {
+                            TAG: tag,
+                            SETOR_ORIGINAL: limpar(col[1]),
+                            SETOR_ENCONTRADO: limpar(col[2]),
+                            LEITO: limpar(col[3]),
+                            DATA: limpar(col[4]) || new Date().toLocaleDateString('pt-BR')
+                        };
+                    }
+                }
+                atualizarContadores();
+                renderizarLadoEsquerdo(); // Atualiza a visão para mostrar os leitos carregados
+                showToast("♻️ PROGRESSO RECUPERADO", "bg-green-600");
+            };
+            reader.readAsText(e.target.files[0]);
+        });
+
+        function popularSetores() {
+            const select = document.getElementById('filtroSetor');
+            select.innerHTML = '<option value="">TODOS OS SETORES...</option>';
+            const setores = [...new Set(bancoDados.map(item => item.setor))].sort();
+            setores.forEach(setor => {
+                if(setor) {
+                    const opt = document.createElement('option');
+                    opt.value = setor.toUpperCase(); opt.textContent = setor.toUpperCase();
+                    select.appendChild(opt);
+                }
+            });
+        }
+
+        function renderizarLadoEsquerdo() {
+            const container = document.getElementById('listaEquipamentos');
+            const termo = document.getElementById('busca').value.toUpperCase();
+            const setorSel = document.getElementById('filtroSetor').value;
+
+            if (termo.length < 2 && !setorSel) {
+                container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione um setor ou use a busca global</p>';
+                return;
+            }
+
+            const filtrados = bancoDados.filter(item => {
+                if (termo.length >= 2) return (item.tag.toUpperCase().includes(termo) || item.sn.toUpperCase().includes(termo));
+                return setorSel ? item.setor.toUpperCase() === setorSel : false;
+            });
+
+            container.innerHTML = filtrados.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Nenhum equipamento encontrado</p>';
+            
+            filtrados.forEach(item => {
+                // VERIFICA SE JÁ EXISTE NO HISTÓRICO (CSV OU SESSÃO)
+                const registroExistente = memoriaRonda[item.tag.toUpperCase()];
+                const jaFezAgora = itensNovosSessao.some(i => i.TAG === item.tag.toUpperCase());
+                
+                const statusClass = item.status.toUpperCase() === 'ATIVO' ? 'status-ativo' : 'status-inativo';
+                
+                const div = document.createElement('div');
+                // Se já foi registrado, ganha uma borda verde e um fundo leve
+                div.className = `p-4 border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 ${registroExistente ? 'border-l-green-500 bg-green-50/50' : 'border-l-blue-400 bg-white'}`;
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-xs font-black text-slate-800 leading-tight">${item.nome.toUpperCase()}</p>
+                            <p class="text-[10px] font-mono text-slate-500 uppercase">TAG: ${item.tag} | SN: ${item.sn}</p>
+                            <p class="text-[9px] text-blue-500 font-bold uppercase mt-1">Sist: ${item.setor}</p>
+                        </div>
+                        <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase ${statusClass}">${item.status}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="in-leito-${item.tag}" 
+                               placeholder="${registroExistente ? 'LEITO: ' + registroExistente.LEITO : 'DIGITE O LEITO...'}" 
+                               value="${registroExistente ? registroExistente.LEITO : ''}"
+                               class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-green-500 bg-white">
+                        <button onclick="confirmarAcao('${item.tag}', '${item.setor}')" 
+                                class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700 transition-all">
+                            OK
+                        </button>
+                    </div>
+                    ${registroExistente ? `<p class="text-[8px] text-green-600 font-bold mt-1">ÚLTIMO REGISTRO: ${registroExistente.DATA} em ${registroExistente.SETOR_ENCONTRADO}</p>` : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function confirmarAcao(tag, setorOrig) {
+            const inputLeito = document.getElementById(`in-leito-${tag}`);
+            const leitoValor = inputLeito.value.trim().toUpperCase();
+            const setorRonda = document.getElementById('filtroSetor').value || "BUSCA GLOBAL";
+
+            if (!leitoValor) {
+                showToast("⚠️ INFORME O LEITO!", "bg-red-500");
+                inputLeito.focus();
+                return;
+            }
+
+            const registro = {
+                TAG: tag.toUpperCase(),
+                SETOR_ORIGINAL: setorOrig.toUpperCase(),
+                SETOR_ENCONTRADO: setorRonda,
+                LEITO: leitoValor,
+                DATA: new Date().toLocaleDateString('pt-BR')
+            };
+
+            memoriaRonda[tag.toUpperCase()] = registro;
+            
+            // Adiciona na lista da direita se não estiver lá
+            if (!itensNovosSessao.some(i => i.TAG === tag.toUpperCase())) {
+                itensNovosSessao.unshift(registro);
+            } else {
+                // Se já estava, atualiza a posição e os dados
+                itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag.toUpperCase());
+                itensNovosSessao.unshift(registro);
+            }
+
+            showToast(`✅ ${tag} ATUALIZADO`, "bg-slate-800");
+            atualizarContadores();
+            renderizarLogSessao();
+            renderizarLadoEsquerdo();
+        }
+
+        function renderizarLogSessao() {
+            const container = document.getElementById('listaColeta');
+            container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado ainda.</p>';
+            itensNovosSessao.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2 animate-in slide-in-from-right-4";
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <span class="text-[9px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span>
+                        <p class="text-[10px] font-bold text-slate-700 uppercase mt-1">L: ${item.LEITO} | <span class="text-slate-400 font-normal">${item.SETOR_ENCONTRADO}</span></p>
+                    </div>
+                    <span class="text-[8px] text-slate-300 font-bold">${item.DATA}</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function atualizarContadores() {
+            document.getElementById('contadorSessao').textContent = `Sessão: ${itensNovosSessao.length}`;
+            document.getElementById('contadorTotal').textContent = `Total: ${Object.keys(memoriaRonda).length}`;
+        }
+
+        function showToast(msg, cor) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all duration-300 font-black text-sm z-50 ${cor} translate-y-0 opacity-100`;
+            setTimeout(() => {
+                t.className = t.className.replace('translate-y-0 opacity-100', 'translate-y-32 opacity-0');
+            }, 2000);
+        }
+
+        document.getElementById('busca').addEventListener('input', renderizarLadoEsquerdo);
+        document.getElementById('filtroSetor').addEventListener('change', renderizarLadoEsquerdo);
+
+        function exportarDados() {
+            const lista = Object.values(memoriaRonda);
+            if (lista.length === 0) return showToast("❌ LISTA VAZIA!", "bg-orange-500");
+            let csv = "\uFEFFTAG;SETOR_ORIGINAL;SETOR_ENCONTRADO;LEITO;DATA\n";
+            lista.forEach(row => {
+                csv += `"${row.TAG}";"${row.SETOR_ORIGINAL}";"${row.SETOR_ENCONTRADO}";"${row.LEITO}";"${row.DATA}"\n`;
+            });
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.csv`;
+            a.click();
+        }
+    </script>
+</body>
+</html>
