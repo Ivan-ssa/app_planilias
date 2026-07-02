@@ -1,69 +1,298 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Sistema de Planilhas</title>
-    <!-- 1. Importando a biblioteca SheetJS via CDN -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ronda Hospitalar - Excel Integrado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
+    
+    <style>
+        input { text-transform: uppercase; }
+        .status-ativo { background-color: #dcfce7; color: #166534; border: 1px solid #166534; }
+        .status-inativo { background-color: #fee2e2; color: #991b1b; border: 1px solid #991b1b; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
+    </style>
 </head>
-<body>
-    <h2>Leitura e Exportação de Equipamentos</h2>
-    
-    <!-- 2. Input para ler a planilha -->
-    <input type="file" id="uploadExcel" accept=".xlsx, .xls" />
-    
-    <!-- 3. Botão para exportar a planilha (escondido inicialmente) -->
-    <button id="exportExcel" style="display:none;">Salvar e Exportar Planilha</button>
+<body class="bg-slate-100 p-2 sm:p-4 font-sans text-slate-800">
+    <div class="max-w-7xl mx-auto">
+        
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
+            <div>
+                <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo Excel Integrado</p>
+            </div>
+            <div class="flex gap-4 items-center">
+                <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Sessão: 0</div>
+                <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Total: 0</div>
+            </div>
+        </div>
+
+        <div id="setup" class="bg-white p-4 rounded-xl shadow-sm mb-4 border border-blue-100">
+            <label class="text-[10px] font-bold text-blue-700 uppercase">1. Importar Planilha de Equipamentos (Excel .xlsx)</label>
+            <input type="file" id="arquivoExcel" accept=".xlsx, .xls" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
+        </div>
+
+        <div id="appBody" class="hidden">
+            <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Busca Global (TAG ou SN)</label>
+                    <input type="text" id="busca" placeholder="PROCURAR TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar Setor</label>
+                    <select id="filtroSetor" class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none">
+                        <option value="">TODOS OS SETORES...</option>
+                    </select>
+                </div>
+                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Limpar</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
+                
+                <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
+                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        🔍 Equipamentos Encontrados
+                    </h2>
+                    <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione um setor ou use a busca</p>
+                    </div>
+                </div>
+
+                <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200 flex flex-col">
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
+                        ✅ Novos nesta Ronda
+                    </h2>
+                    <div id="listaColeta" class="space-y-2 flex-1 max-h-[480px] overflow-y-auto pr-2 mb-4">
+                        <p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
+                    </div>
+                    <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
+                        📥 Exportar Planilha Atualizada (.xlsx)
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
 
     <script>
-        // Variável para guardar os dados da planilha na memória do sistema
-        let dadosPlanilha = [];
+        let bancoDados = []; // Guarda as linhas do Excel original
+        let memoriaRonda = {}; // Guarda as modificações feitas pelo usuário
+        let itensNovosSessao = []; // Guarda a ordem para mostrar na tela
 
-        // --- LÓGICA DE LEITURA ---
-        document.getElementById('uploadExcel').addEventListener('change', (evento) => {
-            const arquivo = evento.target.files[0];
+        // --- 1. LER O EXCEL ---
+        document.getElementById('arquivoExcel').addEventListener('change', function(e) {
+            if (!e.target.files[0]) return;
             const reader = new FileReader();
-
-            reader.onload = function(e) {
-                const data = new Uint8Array(e.target.result);
-                // Lê o arquivo Excel
-                const workbook = XLSX.read(data, {type: 'array'});
-
-                // Pega a primeira aba da planilha
-                const nomePrimeiraAba = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[nomePrimeiraAba];
-
-                // Converte a planilha em um Array de Objetos (JSON)
-                // O {defval: ""} garante que células vazias não quebrem as colunas
-                dadosPlanilha = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
-                
-                console.log("Dados importados:", dadosPlanilha);
-                alert("Planilha lida com sucesso! Você já pode editar os dados no sistema.");
-                
-                // Mostra o botão de exportar agora que temos os dados
-                document.getElementById('exportExcel').style.display = 'block';
+            
+            reader.onload = function(event) {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const nomePrimeiraAba = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[nomePrimeiraAba];
+                    
+                    // Converte a aba do Excel para um array de objetos (preservando células vazias)
+                    bancoDados = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+                    
+                    document.getElementById('appBody').classList.remove('hidden');
+                    popularSetores();
+                    showToast("✅ PLANILHA CARREGADA", "bg-blue-600");
+                } catch(err) { 
+                    alert("Erro ao ler o arquivo Excel!"); 
+                    console.error(err);
+                }
             };
-
-            reader.readAsArrayBuffer(arquivo);
+            reader.readAsArrayBuffer(e.target.files[0]);
         });
 
-        // --- LÓGICA DE SALVAMENTO/EXPORTAÇÃO ---
-        document.getElementById('exportExcel').addEventListener('click', () => {
-            if (dadosPlanilha.length === 0) {
-                alert("Nenhum dado para exportar.");
+        // --- 2. POPULAR SELECT DE SETORES ---
+        function popularSetores() {
+            const select = document.getElementById('filtroSetor');
+            select.innerHTML = '<option value="">TODOS OS SETORES...</option>';
+            
+            // Pega o nome das colunas "Setor" baseado no seu Excel
+            const setores = [...new Set(bancoDados.map(item => item['Setor']))].filter(Boolean).sort();
+            
+            setores.forEach(setor => {
+                const opt = document.createElement('option');
+                opt.value = String(setor).toUpperCase(); 
+                opt.textContent = String(setor).toUpperCase();
+                select.appendChild(opt);
+            });
+        }
+
+        // --- 3. EXIBIR EQUIPAMENTOS NA TELA ---
+        function renderizarLadoEsquerdo() {
+            const container = document.getElementById('listaEquipamentos');
+            const termo = document.getElementById('busca').value.toUpperCase();
+            const setorSel = document.getElementById('filtroSetor').value;
+
+            if (termo.length < 2 && !setorSel) {
+                container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione um setor ou use a busca global</p>';
                 return;
             }
 
-            // Converte os dados (que você pode ter editado no sistema) de volta para o formato de planilha
-            const novaWorksheet = XLSX.utils.json_to_sheet(dadosPlanilha);
-            const novoWorkbook = XLSX.utils.book_new();
+            const filtrados = bancoDados.filter(item => {
+                const tag = String(item['TAG'] || "").toUpperCase();
+                const sn = String(item['Nº Série'] || "").toUpperCase();
+                const setorItem = String(item['Setor'] || "").toUpperCase();
 
-            // Adiciona os dados ao novo arquivo Excel
+                if (termo.length >= 2) return (tag.includes(termo) || sn.includes(termo));
+                return setorSel ? setorItem === setorSel : false;
+            });
+
+            container.innerHTML = filtrados.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Nenhum equipamento encontrado</p>';
+            
+            filtrados.forEach(item => {
+                const tag = String(item['TAG'] || "");
+                const nome = String(item['Equipamento'] || "N/A");
+                const sn = String(item['Nº Série'] || "N/A");
+                const setor = String(item['Setor'] || "N/A");
+                
+                // Trata o status baseado na coluna "Inativo" do seu Excel (SIM = Inativo, NÃO/Vazio = Ativo)
+                const inativo = String(item['Inativo'] || "").toUpperCase();
+                const isAtivo = (inativo !== "SIM");
+                const statusClass = isAtivo ? 'status-ativo' : 'status-inativo';
+                const statusTexto = isAtivo ? 'ATIVO' : 'INATIVO';
+
+                const registroExistente = memoriaRonda[tag];
+                
+                const div = document.createElement('div');
+                div.className = `p-4 border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 ${registroExistente ? 'border-l-green-500 bg-green-50/50' : 'border-l-blue-400 bg-white'}`;
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-2">
+                        <div>
+                            <p class="text-xs font-black text-slate-800 leading-tight">${nome.toUpperCase()}</p>
+                            <p class="text-[10px] font-mono text-slate-500 uppercase">TAG: ${tag} | SN: ${sn}</p>
+                            <p class="text-[9px] text-blue-500 font-bold uppercase mt-1">Sist: ${setor}</p>
+                        </div>
+                        <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase ${statusClass}">${statusTexto}</span>
+                    </div>
+                    <div class="flex gap-2">
+                        <input type="text" id="in-setor-atual-${tag}" 
+                               placeholder="${registroExistente ? 'ATUAL: ' + registroExistente.SETOR_ATUAL : 'DIGITE O SETOR ATUAL...'}" 
+                               value="${registroExistente ? registroExistente.SETOR_ATUAL : ''}"
+                               class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-green-500 bg-white">
+                        <button onclick="confirmarAcao('${tag}', '${setor.replace(/'/g, "\\'")}')" 
+                                class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700 transition-all">
+                            OK
+                        </button>
+                    </div>
+                    ${registroExistente ? `<p class="text-[8px] text-green-600 font-bold mt-1">ÚLTIMO REGISTRO: ${registroExistente.DATA}</p>` : ''}
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        // --- 4. SALVAR AÇÃO (MEMÓRIA) ---
+        function confirmarAcao(tag, setorOrig) {
+            const inputSetor = document.getElementById(`in-setor-atual-${tag}`);
+            const setorAtualValor = inputSetor.value.trim().toUpperCase();
+
+            if (!setorAtualValor) {
+                showToast("⚠️ INFORME O SETOR ATUAL!", "bg-red-500");
+                inputSetor.focus();
+                return;
+            }
+
+            const dataHoje = new Date().toLocaleDateString('pt-BR');
+
+            const registro = {
+                TAG: tag,
+                SETOR_ORIGINAL: setorOrig,
+                SETOR_ATUAL: setorAtualValor,
+                DATA: dataHoje
+            };
+
+            memoriaRonda[tag] = registro;
+            
+            // Adiciona na lista da direita para feedback visual
+            itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag);
+            itensNovosSessao.unshift(registro);
+
+            showToast(`✅ ${tag} ATUALIZADO`, "bg-slate-800");
+            atualizarContadores();
+            renderizarLogSessao();
+            renderizarLadoEsquerdo();
+        }
+
+        function renderizarLogSessao() {
+            const container = document.getElementById('listaColeta');
+            container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado ainda.</p>';
+            itensNovosSessao.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2 animate-in slide-in-from-right-4";
+                div.innerHTML = `
+                    <div class="flex-1">
+                        <span class="text-[9px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span>
+                        <p class="text-[10px] font-bold text-slate-700 uppercase mt-1">ATUAL: ${item.SETOR_ATUAL}</p>
+                    </div>
+                    <span class="text-[8px] text-slate-400 font-bold">${item.DATA}</span>
+                `;
+                container.appendChild(div);
+            });
+        }
+
+        function atualizarContadores() {
+            document.getElementById('contadorSessao').textContent = `Sessão: ${itensNovosSessao.length}`;
+            document.getElementById('contadorTotal').textContent = `Total: ${Object.keys(memoriaRonda).length}`;
+        }
+
+        function showToast(msg, cor) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all duration-300 font-black text-sm z-50 ${cor} translate-y-0 opacity-100`;
+            setTimeout(() => {
+                t.className = t.className.replace('translate-y-0 opacity-100', 'translate-y-32 opacity-0');
+            }, 2000);
+        }
+
+        // --- Eventos de Filtro ---
+        document.getElementById('busca').addEventListener('input', renderizarLadoEsquerdo);
+        document.getElementById('filtroSetor').addEventListener('change', renderizarLadoEsquerdo);
+
+        // --- 5. EXPORTAR EXCEL ---
+        function exportarDados() {
+            if (Object.keys(memoriaRonda).length === 0) {
+                return showToast("❌ NENHUM DADO ATUALIZADO!", "bg-orange-500");
+            }
+
+            // Mapeia o bancoDados original e injeta as alterações de SETOR ATUAL e DATA
+            const dadosExportacao = bancoDados.map(item => {
+                const tag = String(item['TAG'] || "");
+                if (memoriaRonda[tag]) {
+                    return {
+                        ...item, 
+                        'SETOR ATUAL': memoriaRonda[tag].SETOR_ATUAL,
+                        'DATA': memoriaRonda[tag].DATA
+                    };
+                }
+                return item;
+            });
+
+            // Converte os dados atualizados de volta para formato Excel
+            const novaWorksheet = XLSX.utils.json_to_sheet(dadosExportacao);
+            const novoWorkbook = XLSX.utils.book_new();
+            
+            // Ajusta a largura das colunas do Excel exportado (opcional, mas fica mais bonito)
+            novaWorksheet['!cols'] = [
+                {wch: 15}, {wch: 40}, {wch: 35}, {wch: 20}, {wch: 45}, 
+                {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 12}, {wch: 45}
+            ];
+
             XLSX.utils.book_append_sheet(novoWorkbook, novaWorksheet, "Equipamentos_Atualizados");
 
-            // Baixa o arquivo para o computador do usuário mantendo o formato original
-            XLSX.writeFile(novoWorkbook, "planilha_atualizada.xlsx");
-        });
+            // Baixa o arquivo Excel
+            XLSX.writeFile(novoWorkbook, `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast("📥 EXCEL GERADO COM SUCESSO!", "bg-green-600");
+        }
     </script>
 </body>
 </html>
