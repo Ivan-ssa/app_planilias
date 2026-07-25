@@ -3,15 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Ronda Hospitalar - Excel Integrado</title>
-    <!-- Tailwind CSS para o visual -->
+    <title>Ronda hospitalar - Excel Integrado</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- Biblioteca SheetJS para ler e salvar Excel -->
     <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-    
     <link rel="manifest" href="manifest.json">
     <meta name="theme-color" content="#1e3a8a">
-    
     <style>
         input { text-transform: uppercase; }
         .status-ativo { background-color: #dcfce7; color: #166534; border: 1px solid #166534; }
@@ -21,287 +17,465 @@
     </style>
 </head>
 <body class="bg-slate-100 p-2 sm:p-4 font-sans text-slate-800">
-    <div class="max-w-7xl mx-auto">
-        
-        <!-- Cabeçalho -->
-        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center">
-            <div>
-                <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
-                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo Excel Integrado</p>
-            </div>
-            <div class="flex gap-4 items-center">
-                <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Sessão: 0</div>
-                <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Total: 0</div>
-            </div>
+
+<div class="max-w-7xl mx-auto">
+    <!-- Cabeçalho -->
+    <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center flex-wrap gap-2">
+        <div>
+            <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
+            <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo Excel Integrado</p>
         </div>
-
-        <!-- Área de Importação -->
-        <div id="setup" class="bg-white p-4 rounded-xl shadow-sm mb-4 border border-blue-100">
-            <label class="text-[10px] font-bold text-blue-700 uppercase">1. Importar Planilha de Equipamentos (Excel .xlsx)</label>
-            <input type="file" id="arquivoExcel" accept=".xlsx, .xls" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
-        </div>
-
-        <!-- Corpo do App (Oculto até carregar a planilha) -->
-        <div id="appBody" class="hidden">
-            <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[9px] text-white/70 font-bold uppercase">Busca Global (TAG ou SN)</label>
-                    <input type="text" id="busca" placeholder="PROCURAR TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
-                </div>
-                <div class="flex-1 min-w-[200px]">
-                    <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar Setor / Setor da Ronda Atual</label>
-                    <select id="filtroSetor" class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none">
-                        <option value="">SELECIONE O SETOR DA RONDA...</option>
-                    </select>
-                </div>
-                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Limpar</button>
-            </div>
-
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
-                
-                <!-- Lado Esquerdo: Lista de Equipamentos -->
-                <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
-                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        🔍 Equipamentos Encontrados
-                    </h2>
-                    <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
-                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione o setor da ronda para começar</p>
-                    </div>
-                </div>
-
-                <!-- Lado Direito: Resumo e Exportação -->
-                <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200 flex flex-col">
-                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2">
-                        ✅ Novos nesta Ronda
-                    </h2>
-                    <div id="listaColeta" class="space-y-2 flex-1 max-h-[480px] overflow-y-auto pr-2 mb-4">
-                        <p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
-                    </div>
-                    <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
-                        📥 Exportar Planilha Atualizada (.xlsx)
-                    </button>
-                </div>
-            </div>
+        <div class="flex gap-2 sm:gap-4 items-center flex-wrap">
+            <!-- NOVO: Medidor de Progresso GERAL -->
+            <div id="progressoGeral" class="bg-indigo-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm transition-colors duration-300 hidden">Geral: 0%</div>
+            
+            <!-- Medidor de progresso DO SETOR (já existia) -->
+            <div id="progressoSetor" class="bg-purple-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm hidden transition-colors duration-300">Setor: 0%</div>
+            
+            <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Sessão: 0</div>
+            <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Total: 0</div>
         </div>
     </div>
 
-    <!-- Toast de Notificação -->
-    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
+    <!-- Área de Importação -->
+    <div id="setup" class="bg-white p-4 rounded-xl shadow-sm mb-4 border border-blue-100">
+        <label class="text-[10px] font-bold text-blue-700 uppercase">1. Importar Planilha de Equipamentos (Excel .xlsx)</label>
+        <input type="file" id="arquivoExcel" accept=".xlsx, .xls" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
+    </div>
 
-    <script>
-        let bancoDados = []; // Guarda as linhas do Excel original
-        let memoriaRonda = {}; // Guarda as modificações feitas pelo usuário
-        let itensNovosSessao = []; // Guarda a ordem para mostrar na tela
-
-        // --- 1. LER O EXCEL ---
-        document.getElementById('arquivoExcel').addEventListener('change', function(e) {
-            if (!e.target.files[0]) return;
-            const reader = new FileReader();
+    <!-- Corpo do App (Oculto até carregar a planilha) -->
+    <div id="appBody" class="hidden">
+        <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
+            <div class="flex-1 min-w-[200px]">
+                <label class="text-[9px] text-white/70 font-bold uppercase">Busca Global (TAG ou SN)</label>
+                <input type="text" id="busca" placeholder="PROCURAR TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
+            </div>
             
-            reader.onload = function(event) {
-                try {
-                    const data = new Uint8Array(event.target.result);
-                    const workbook = XLSX.read(data, {type: 'array'});
-                    const nomePrimeiraAba = workbook.SheetNames[0];
-                    const worksheet = workbook.Sheets[nomePrimeiraAba];
-                    
-                    // Converte a aba do Excel para um array de objetos
-                    bancoDados = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
-                    
-                    document.getElementById('appBody').classList.remove('hidden');
-                    popularSetores();
-                    showToast("✅ PLANILHA CARREGADA", "bg-blue-600");
-                } catch(err) { 
-                    alert("Erro ao ler o arquivo Excel!"); 
-                    console.error(err);
-                }
-            };
-            reader.readAsArrayBuffer(e.target.files[0]);
+            <!-- Transformado de <select> para <input list> para permitir digitar e filtrar setores -->
+            <div class="flex-1 min-w-[200px]">
+                <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar Setor / Setor da Ronda Atual</label>
+                <input type="text" id="filtroSetor" list="listaDeSetores" placeholder="DIGITE O SETOR DA RONDA..." class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none uppercase placeholder:text-slate-400">
+                <datalist id="listaDeSetores"></datalist>
+            </div>
+            
+            <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Limpar</button>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
+            <!-- Lado Esquerdo: Lista de Equipamentos -->
+            <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
+                <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2"> 🔍 Equipamentos Encontrados </h2>
+                <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
+                    <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione o setor da ronda para começar</p>
+                </div>
+            </div>
+
+            <!-- Lado Direito: Resumo e Exportação -->
+            <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200 flex flex-col">
+                <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2"> ✅ Novos nesta Ronda </h2>
+                <div id="listaColeta" class="space-y-2 flex-1 max-h-[480px] overflow-y-auto pr-2 mb-4">
+                    <p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
+                </div>
+                <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase">
+                    📥 Exportar Planilha Atualizada (.xlsx)
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast de Notificação -->
+<div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
+
+<script>
+    let bancoDados = []; 
+    let memoriaRonda = {}; 
+    let itensNovosSessao = []; 
+
+    // --- 1. LER O EXCEL ---
+    document.getElementById('arquivoExcel').addEventListener('change', function(e) {
+        if (!e.target.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const data = new Uint8Array(event.target.result);
+                const workbook = XLSX.read(data, {type: 'array'});
+                const nomePrimeiraAba = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[nomePrimeiraAba];
+                
+                bancoDados = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+                document.getElementById('appBody').classList.remove('hidden');
+                popularSetores();
+                showToast("✅ PLANILHA CARREGADA", "bg-blue-600");
+            } catch(err) {
+                alert("Erro ao ler o arquivo Excel!");
+                console.error(err);
+            }
+        };
+        reader.readAsArrayBuffer(e.target.files[0]);
+    });
+
+    // --- 2. POPULAR DATALIST DE SETORES ---
+    function popularSetores() {
+        const datalist = document.getElementById('listaDeSetores');
+        datalist.innerHTML = ''; 
+        const setores = [...new Set(bancoDados.map(item => item['Setor']))].filter(Boolean).sort();
+        
+        setores.forEach(setor => {
+            const opt = document.createElement('option');
+            opt.value = String(setor).toUpperCase();
+            datalist.appendChild(opt);
+        });
+    }
+
+    // --- 3. EXIBIR EQUIPAMENTOS NA TELA ---
+    function renderizarLadoEsquerdo() {
+        const container = document.getElementById('listaEquipamentos');
+        const termo = document.getElementById('busca').value.toUpperCase();
+        const setorSel = document.getElementById('filtroSetor').value.toUpperCase();
+
+        if (termo.length < 2 && !setorSel) {
+            container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione o setor da ronda ou use a busca global</p>';
+            return;
+        }
+
+        const filtrados = bancoDados.filter(item => {
+            const tag = String(item['TAG'] || "").toUpperCase();
+            const sn = String(item['Nº Série'] || "").toUpperCase();
+            const setorItem = String(item['Setor'] || "").toUpperCase(); // Coluna E
+            
+            // VERIFICA SE O EQUIPAMENTO JÁ FOI ENCONTRADO
+            // Olha a Coluna K do Excel ou se ele já foi salvo na memória nesta sessão
+            const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+            const jaEncontrado = (colunaK !== "") || !!memoriaRonda[tag];
+
+            // REGRA 1: Se o usuário estiver buscando ativamente por TAG/SN, mostra o equipamento 
+            // INDEPENDENTEMENTE de já ter sido encontrado ou não.
+            if (termo.length >= 2) {
+                return (tag.includes(termo) || sn.includes(termo));
+            }
+            
+            // REGRA 2: Se estiver apenas navegando pela lista do Setor, 
+            // mostra APENAS os equipamentos que AINDA NÃO FORAM ENCONTRADOS (Pendentes)
+            if (setorSel) {
+                return (setorItem === setorSel && !jaEncontrado);
+            }
+
+            return false;
         });
 
-        // --- 2. POPULAR SELECT DE SETORES ---
-        function popularSetores() {
-            const select = document.getElementById('filtroSetor');
-            select.innerHTML = '<option value="">SELECIONE O SETOR DA RONDA...</option>';
+        // Atualizei o texto caso a lista fique vazia para ficar mais claro
+        container.innerHTML = filtrados.length ? '' : '<p class="text-green-600 text-sm text-center py-10 uppercase font-black">✨ Todos os equipamentos deste setor foram encontrados!</p>';
+
+        filtrados.forEach(item => {
+            const tag = String(item['TAG'] || "");
+            const nome = String(item['Equipamento'] || "N/A");
+            const sn = String(item['Nº Série'] || "N/A");
+            const setorOriginal = String(item['Setor'] || "N/A"); // Coluna E
+            const inativo = String(item['Inativo'] || "").toUpperCase();
             
-            const setores = [...new Set(bancoDados.map(item => item['Setor']))].filter(Boolean).sort();
+            const marca = item['Marca'] ? String(item['Marca']).toUpperCase() : '-';
+            const modelo = item['Modelo'] ? String(item['Modelo']).toUpperCase() : '-';
+
+            const isAtivo = (inativo !== "SIM");
+            const statusClass = isAtivo ? 'status-ativo' : 'status-inativo';
+            const statusTexto = isAtivo ? 'ATIVO' : 'INATIVO';
+            const registroExistente = memoriaRonda[tag];
+
+            const div = document.createElement('div');
+            div.className = `p-4 border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 ${registroExistente ? 'border-l-green-500 bg-green-50/50' : 'border-l-blue-400 bg-white'}`;
             
-            setores.forEach(setor => {
-                const opt = document.createElement('option');
-                opt.value = String(setor).toUpperCase(); 
-                opt.textContent = String(setor).toUpperCase();
-                select.appendChild(opt);
-            });
-        }
-
-        // --- 3. EXIBIR EQUIPAMENTOS NA TELA ---
-        function renderizarLadoEsquerdo() {
-            const container = document.getElementById('listaEquipamentos');
-            const termo = document.getElementById('busca').value.toUpperCase();
-            const setorSel = document.getElementById('filtroSetor').value;
-
-            if (termo.length < 2 && !setorSel) {
-                container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione o setor da ronda ou use a busca global</p>';
-                return;
-            }
-
-            const filtrados = bancoDados.filter(item => {
-                const tag = String(item['TAG'] || "").toUpperCase();
-                const sn = String(item['Nº Série'] || "").toUpperCase();
-                const setorItem = String(item['Setor'] || "").toUpperCase();
-
-                if (termo.length >= 2) return (tag.includes(termo) || sn.includes(termo));
-                return setorSel ? setorItem === setorSel : false;
-            });
-
-            container.innerHTML = filtrados.length ? '' : '<p class="text-slate-400 text-sm text-center py-10 uppercase font-bold">Nenhum equipamento encontrado</p>';
-            
-            filtrados.forEach(item => {
-                const tag = String(item['TAG'] || "");
-                const nome = String(item['Equipamento'] || "N/A");
-                const sn = String(item['Nº Série'] || "N/A");
-                const setorOriginal = String(item['Setor'] || "N/A");
-                
-                const inativo = String(item['Inativo'] || "").toUpperCase();
-                const isAtivo = (inativo !== "SIM");
-                const statusClass = isAtivo ? 'status-ativo' : 'status-inativo';
-                const statusTexto = isAtivo ? 'ATIVO' : 'INATIVO';
-
-                const registroExistente = memoriaRonda[tag];
-                
-                const div = document.createElement('div');
-                div.className = `p-4 border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 ${registroExistente ? 'border-l-green-500 bg-green-50/50' : 'border-l-blue-400 bg-white'}`;
-                
-                div.innerHTML = `
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <p class="text-xs font-black text-slate-800 leading-tight">${nome.toUpperCase()}</p>
-                            <p class="text-[10px] font-mono text-slate-500 uppercase">TAG: ${tag} | SN: ${sn}</p>
-                            <p class="text-[9px] text-blue-500 font-bold uppercase mt-1">CADASTRO: ${setorOriginal}</p>
+            div.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <div class="w-full pr-2">
+                        <p class="text-sm font-black text-slate-800 leading-tight mb-2">${nome.toUpperCase()}</p>
+                        
+                        <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-md border border-slate-100">
+                            <div>
+                                <p class="text-[9px] text-slate-500 uppercase font-bold">Patrimônio</p>
+                                <p class="text-xs font-black text-blue-900">${tag}</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-500 uppercase font-bold">Série (SN)</p>
+                                <p class="text-xs font-bold text-slate-700">${sn}</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-500 uppercase font-bold">Marca</p>
+                                <p class="text-[10px] font-bold text-slate-700">${marca}</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-500 uppercase font-bold">Modelo</p>
+                                <p class="text-[10px] font-bold text-slate-700">${modelo}</p>
+                            </div>
                         </div>
-                        <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase ${statusClass}">${statusTexto}</span>
+                        
+                        <p class="text-[9px] text-blue-500 font-bold uppercase mt-2">📍 SETOR CADASTRO: ${setorOriginal}</p>
                     </div>
-                    <div class="flex gap-2 mt-2">
-                        <input type="text" id="in-local-${tag}" 
-                               placeholder="${registroExistente ? 'LOCAL: ' + registroExistente.LOCALIZACAO : 'LOCALIZAÇÃO (EX: LEITO 10)...'}" 
-                               value="${registroExistente ? registroExistente.LOCALIZACAO : ''}"
-                               class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-green-500 bg-white placeholder:text-slate-300">
-                        <button onclick="confirmarAcao('${tag}', '${setorOriginal.replace(/'/g, "\\'")}')" 
-                                class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700 transition-all">
-                            SALVAR
-                        </button>
-                    </div>
-                    ${registroExistente ? `<p class="text-[8px] text-green-600 font-bold mt-2">✔️ REGISTRADO NO SETOR: ${registroExistente.SETOR_ATUAL}</p>` : ''}
-                `;
-                container.appendChild(div);
-            });
+                    <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase ${statusClass}">${statusTexto}</span>
+                </div>
+                
+                <div class="flex gap-2 mt-2">
+                    <input type="text" id="in-local-${tag}" placeholder="${registroExistente ? 'LOCAL: ' + registroExistente.LOCALIZACAO : 'LOCALIZAÇÃO (EX: LEITO 10)...'}" value="${registroExistente ? registroExistente.LOCALIZACAO : ''}" class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-green-500 bg-white placeholder:text-slate-300">
+                    <button onclick="confirmarAcao('${tag}', '${setorOriginal.replace(/'/g, "\\'")}')" class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700 transition-all">
+                        SALVAR
+                    </button>
+                </div>
+                ${registroExistente ? `<p class="text-[8px] text-green-600 font-bold mt-2">✔️ REGISTRADO NO SETOR: ${registroExistente.SETOR_ATUAL}</p>` : ''}
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // --- 4. SALVAR AÇÃO E ATUALIZAR INTERFACE ---
+    function confirmarAcao(tag, setorOriginal) {
+        const setorFiltroAtual = document.getElementById('filtroSetor').value.toUpperCase();
+        
+        if (!setorFiltroAtual) {
+            showToast("⚠️ SELECIONE O SETOR DA RONDA NO TOPO DA PÁGINA!", "bg-red-500");
+            document.getElementById('filtroSetor').focus();
+            return;
         }
 
-        // --- 4. SALVAR AÇÃO (MEMÓRIA) ---
-        function confirmarAcao(tag, setorOriginal) {
-            const setorFiltroAtual = document.getElementById('filtroSetor').value;
-            
-            // Regra: É obrigatório ter um setor selecionado no filtro para definir onde o equipamento foi encontrado
-            if (!setorFiltroAtual) {
-                showToast("⚠️ SELECIONE O SETOR DA RONDA NO TOPO DA PÁGINA!", "bg-red-500");
-                document.getElementById('filtroSetor').focus();
-                return;
-            }
+        const inputLocalizacao = document.getElementById(`in-local-${tag}`);
+        const localizacaoValor = inputLocalizacao.value.trim().toUpperCase();
+        const dataHoje = new Date().toLocaleDateString('pt-BR');
 
-            const inputLocalizacao = document.getElementById(`in-local-${tag}`);
-            const localizacaoValor = inputLocalizacao.value.trim().toUpperCase();
+        const registro = {
+            TAG: tag,
+            SETOR_ORIGINAL: setorOriginal, // Refere-se à Coluna E
+            SETOR_ATUAL: setorFiltroAtual, // Vai para a Coluna K no final
+            LOCALIZACAO: localizacaoValor,
+            DATA: dataHoje
+        };
 
-            const dataHoje = new Date().toLocaleDateString('pt-BR');
+        memoriaRonda[tag] = registro;
+        itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag);
+        itensNovosSessao.unshift(registro);
 
-            // Salva na memória com a nova lógica
-            const registro = {
-                TAG: tag,
-                SETOR_ORIGINAL: setorOriginal, // Coluna E
-                SETOR_ATUAL: setorFiltroAtual, // Coluna K
-                LOCALIZACAO: localizacaoValor, // Coluna L (Nova)
-                DATA: dataHoje
-            };
+        showToast(`✅ ${tag} REGISTRADO`, "bg-slate-800");
+        
+        const campoBusca = document.getElementById('busca');
+        campoBusca.value = '';
+        campoBusca.focus();
 
-            memoriaRonda[tag] = registro;
-            
-            itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag);
-            itensNovosSessao.unshift(registro);
+        atualizarContadores();
+        renderizarLogSessao();
+        renderizarLadoEsquerdo(); 
+    }
 
-            showToast(`✅ ${tag} REGISTRADO`, "bg-slate-800");
-            atualizarContadores();
-            renderizarLogSessao();
-            renderizarLadoEsquerdo();
-        }
+    function renderizarLogSessao() {
+        const container = document.getElementById('listaColeta');
+        container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado ainda.</p>';
+        
+        itensNovosSessao.forEach(item => {
+            const div = document.createElement('div');
+            div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2";
+            div.innerHTML = `
+                <div class="flex-1">
+                    <span class="text-[9px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span>
+                    <p class="text-[10px] font-bold text-slate-700 uppercase mt-1">ENCONTRADO: ${item.SETOR_ATUAL}</p>
+                    ${item.LOCALIZACAO ? `<p class="text-[9px] font-bold text-slate-500 uppercase">LOCAL: ${item.LOCALIZACAO}</p>` : ''}
+                </div>
+                <span class="text-[8px] text-slate-400 font-bold">${item.DATA}</span>
+            `;
+            container.appendChild(div);
+        });
+    }
 
-        function renderizarLogSessao() {
-            const container = document.getElementById('listaColeta');
-            container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado ainda.</p>';
-            itensNovosSessao.forEach(item => {
-                const div = document.createElement('div');
-                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2 animate-in slide-in-from-right-4";
-                div.innerHTML = `
-                    <div class="flex-1">
-                        <span class="text-[9px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span>
-                        <p class="text-[10px] font-bold text-slate-700 uppercase mt-1">ENCONTRADO: ${item.SETOR_ATUAL}</p>
-                        ${item.LOCALIZACAO ? `<p class="text-[9px] font-bold text-slate-500 uppercase">LOCAL: ${item.LOCALIZACAO}</p>` : ''}
-                    </div>
-                    <span class="text-[8px] text-slate-400 font-bold">${item.DATA}</span>
-                `;
-                container.appendChild(div);
-            });
-        }
+    function atualizarContadores() {
+        document.getElementById('contadorSessao').textContent = `Sessão: ${itensNovosSessao.length}`;
+        document.getElementById('contadorTotal').textContent = `Total: ${Object.keys(memoriaRonda).length}`;
 
-        function atualizarContadores() {
-            document.getElementById('contadorSessao').textContent = `Sessão: ${itensNovosSessao.length}`;
-            document.getElementById('contadorTotal').textContent = `Total: ${Object.keys(memoriaRonda).length}`;
-        }
+        // ==========================================
+        // 1. CÁLCULO DO PROGRESSO GERAL DA PLANILHA
+        // ==========================================
+        const totalGeral = bancoDados.length; // Conta TODAS as linhas do Excel
+        const divProgressoGeral = document.getElementById('progressoGeral');
 
-        function showToast(msg, cor) {
-            const t = document.getElementById('toast');
-            t.textContent = msg;
-            t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all duration-300 font-black text-sm z-50 ${cor} translate-y-0 opacity-100`;
-            setTimeout(() => {
-                t.className = t.className.replace('translate-y-0 opacity-100', 'translate-y-32 opacity-0');
-            }, 2500);
-        }
-
-        document.getElementById('busca').addEventListener('input', renderizarLadoEsquerdo);
-        document.getElementById('filtroSetor').addEventListener('change', renderizarLadoEsquerdo);
-
-        // --- 5. EXPORTAR EXCEL ---
-        function exportarDados() {
-            if (Object.keys(memoriaRonda).length === 0) {
-                return showToast("❌ NENHUM DADO ATUALIZADO!", "bg-orange-500");
-            }
-
-            // Mapeia o bancoDados original e adiciona as novas colunas
-            const dadosExportacao = bancoDados.map(item => {
+        if (totalGeral > 0) {
+            // Conta quantos foram feitos na planilha INTEIRA
+            const feitosGeral = bancoDados.filter(item => {
                 const tag = String(item['TAG'] || "");
-                if (memoriaRonda[tag]) {
-                    return {
-                        ...item, 
-                        'SETOR ATUAL': memoriaRonda[tag].SETOR_ATUAL,
-                        'LOCALIZAÇÃO': memoriaRonda[tag].LOCALIZACAO,
-                        'DATA': memoriaRonda[tag].DATA
-                    };
-                }
-                return item;
-            });
+                const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+                const jaTinhaNaPlanilha = colunaK !== "";
+                const salvoNestaSessao = !!memoriaRonda[tag];
+                
+                return jaTinhaNaPlanilha || salvoNestaSessao;
+            }).length;
 
-            const novaWorksheet = XLSX.utils.json_to_sheet(dadosExportacao);
-            const novoWorkbook = XLSX.utils.book_new();
+            const porcentagemGeral = Math.round((feitosGeral / totalGeral) * 100);
             
-            // Ajusta a largura das colunas (adicionado a coluna extra de Localização)
-            novaWorksheet['!cols'] = [
-                {wch: 15}, {wch: 40}, {wch: 35}, {wch: 20}, {wch: 45}, 
-                {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 12}, {wch: 35}, {wch: 30}
-            ];
+            divProgressoGeral.textContent = `Geral: ${feitosGeral} de ${totalGeral} (${porcentagemGeral}%)`;
+            divProgressoGeral.classList.remove('hidden');
 
-            XLSX.utils.book_append_sheet(novoWorkbook, novaWorksheet, "Equipamentos_Atualizados");
-
-            XLSX.writeFile(novoWorkbook, `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.xlsx`);
-            showToast("📥 EXCEL GERADO COM SUCESSO!", "bg-green-600");
+            if (porcentagemGeral === 100) {
+                divProgressoGeral.classList.remove('bg-indigo-600');
+                divProgressoGeral.classList.add('bg-green-600');
+            }
         }
-    </script>
+
+        // ==========================================
+        // 2. CÁLCULO DO PROGRESSO DO SETOR ATUAL
+        // ==========================================
+        const setorSelecionado = document.getElementById('filtroSetor').value.toUpperCase();
+        const divProgresso = document.getElementById('progressoSetor');
+
+        if (!setorSelecionado) {
+            divProgresso.classList.add('hidden');
+            return;
+        }
+
+        // Filtra equipamentos cuja Coluna E (Setor) seja igual ao setor atual
+        const equipamentosDoSetorOriginal = bancoDados.filter(item => String(item['Setor'] || "").toUpperCase() === setorSelecionado);
+        const totalNoSetor = equipamentosDoSetorOriginal.length;
+
+        if (totalNoSetor > 0) {
+            const feitosNoSetor = equipamentosDoSetorOriginal.filter(item => {
+                const tag = String(item['TAG'] || "");
+                const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+                const jaTinhaNaPlanilha = colunaK !== "";
+                const salvoNestaSessao = !!memoriaRonda[tag];
+                
+                return jaTinhaNaPlanilha || salvoNestaSessao;
+            }).length;
+
+            const porcentagemSetor = Math.round((feitosNoSetor / totalNoSetor) * 100);
+            
+            divProgresso.textContent = `Setor: ${feitosNoSetor} de ${totalNoSetor} (${porcentagemSetor}%)`;
+            divProgresso.classList.remove('hidden');
+
+            if (porcentagemSetor === 100) {
+                divProgresso.classList.remove('bg-purple-600');
+                divProgresso.classList.add('bg-green-600');
+            } else {
+                divProgresso.classList.remove('bg-green-600');
+                divProgresso.classList.add('bg-purple-600');
+            }
+        } else {
+            divProgresso.classList.add('hidden');
+        }
+    }
+
+    function showToast(msg, cor) {
+        const t = document.getElementById('toast');
+        t.textContent = msg;
+        t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all duration-300 font-black text-sm z-50 translate-y-0 opacity-100 ${cor}`;
+        
+        setTimeout(() => {
+            t.classList.replace('translate-y-0', 'translate-y-32');
+            t.classList.replace('opacity-100', 'opacity-0');
+        }, 2500);
+    }
+
+    document.getElementById('busca').addEventListener('input', renderizarLadoEsquerdo);
+    document.getElementById('filtroSetor').addEventListener('input', () => {
+        renderizarLadoEsquerdo();
+        atualizarContadores();
+    });
+
+    // --- 5. EXPORTAR EXCEL (COM DASHBOARD) ---
+    function exportarDados() {
+        if (Object.keys(memoriaRonda).length === 0) {
+            return showToast("❌ NENHUM DADO ATUALIZADO!", "bg-orange-500");
+        }
+        
+        // ==========================================
+        // 1. PREPARAR DADOS DA ABA PRINCIPAL (EQUIPAMENTOS)
+        // ==========================================
+        let totalGeral = 0;
+        let feitosGeral = 0;
+        const contagemPorSetor = {};
+
+        const dadosExportacao = bancoDados.map(item => {
+            const tag = String(item['TAG'] || "");
+            const setor = String(item['Setor'] || "N/A").toUpperCase(); // Para o Dash
+            
+            // Verifica se o item já estava preenchido ou se foi feito agora
+            const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+            const salvoNestaSessao = !!memoriaRonda[tag];
+            const feito = (colunaK !== "") || salvoNestaSessao;
+
+            // Alimenta a matemática do Dashboard
+            totalGeral++;
+            if (feito) feitosGeral++;
+            
+            if (!contagemPorSetor[setor]) {
+                contagemPorSetor[setor] = { total: 0, feitos: 0 };
+            }
+            contagemPorSetor[setor].total++;
+            if (feito) contagemPorSetor[setor].feitos++;
+
+            // Atualiza os dados para a aba de exportação principal
+            if (salvoNestaSessao) {
+                return {
+                    ...item,
+                    'SETOR ATUAL': memoriaRonda[tag].SETOR_ATUAL,
+                    'LOCALIZAÇÃO': memoriaRonda[tag].LOCALIZACAO,
+                    'DATA': memoriaRonda[tag].DATA
+                };
+            }
+            return item;
+        });
+
+        // ==========================================
+        // 2. PREPARAR DADOS DA ABA DASHBOARD
+        // ==========================================
+        const linhasDashboard = [];
+        const porcentagemGeral = totalGeral > 0 ? Math.round((feitosGeral / totalGeral) * 100) : 0;
+
+        // Cabeçalho Geral
+        linhasDashboard.push({
+            "MÉTRICA / SETOR": "📊 PROGRESSO GERAL DO HOSPITAL",
+            "TOTAL EQUIPAMENTOS": totalGeral,
+            "ENCONTRADOS": feitosGeral,
+            "PORCENTAGEM (%)": `${porcentagemGeral}%`
+        });
+        
+        // Linha em branco para separar visualmente
+        linhasDashboard.push({ "MÉTRICA / SETOR": "", "TOTAL EQUIPAMENTOS": "", "ENCONTRADOS": "", "PORCENTAGEM (%)": "" });
+        linhasDashboard.push({ "MÉTRICA / SETOR": "--- DETALHAMENTO POR SETOR ---", "TOTAL EQUIPAMENTOS": "", "ENCONTRADOS": "", "PORCENTAGEM (%)": "" });
+
+        // Ordena os setores em ordem alfabética e adiciona as linhas
+        Object.keys(contagemPorSetor).sort().forEach(setor => {
+            const stats = contagemPorSetor[setor];
+            const perc = stats.total > 0 ? Math.round((stats.feitos / stats.total) * 100) : 0;
+            
+            linhasDashboard.push({
+                "MÉTRICA / SETOR": setor,
+                "TOTAL EQUIPAMENTOS": stats.total,
+                "ENCONTRADOS": stats.feitos,
+                "PORCENTAGEM (%)": `${perc}%`
+            });
+        });
+
+        // ==========================================
+        // 3. CRIAR O ARQUIVO EXCEL COM DUAS ABAS
+        // ==========================================
+        const novoWorkbook = XLSX.utils.book_new();
+
+        // Cria a aba do Dashboard
+        const worksheetDash = XLSX.utils.json_to_sheet(linhasDashboard);
+        worksheetDash['!cols'] = [
+            {wch: 40}, // Largura Coluna Métrica
+            {wch: 20}, // Largura Coluna Total
+            {wch: 15}, // Largura Coluna Encontrados
+            {wch: 15}  // Largura Coluna Porcentagem
+        ];
+        XLSX.utils.book_append_sheet(novoWorkbook, worksheetDash, "Dashboard_Resumo");
+
+        // Cria a aba dos Equipamentos (A que já existia)
+        const worksheetEquipamentos = XLSX.utils.json_to_sheet(dadosExportacao);
+        worksheetEquipamentos['!cols'] = [
+            {wch: 15}, {wch: 40}, {wch: 35}, {wch: 20}, {wch: 45}, 
+            {wch: 15}, {wch: 15}, {wch: 15}, {wch: 10}, {wch: 12}, 
+            {wch: 35}, {wch: 30}
+        ];
+        XLSX.utils.book_append_sheet(novoWorkbook, worksheetEquipamentos, "Base_Atualizada");
+
+        // Baixa o arquivo
+        XLSX.writeFile(novoWorkbook, `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.xlsx`);
+        showToast("📥 EXCEL COM DASHBOARD GERADO!", "bg-green-600");
+    }
+</script>
 </body>
 </html>
