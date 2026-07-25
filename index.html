@@ -140,23 +140,18 @@
         }
 
         const filtrados = bancoDados.filter(item => {
-            const tag = String(item['TAG'] || "").toUpperCase();
-            const sn = String(item['Nº Série'] || "").toUpperCase();
-            const setorItem = String(item['Setor'] || "").toUpperCase(); // Coluna E
+            // Tenta pegar o nome da coluna de várias formas para evitar erros de digitação na planilha
+            const tag = String(item['Tag'] || item['TAG'] || "").toUpperCase();
+            const sn = String(item['Numero de serie'] || item['Nº Série'] || "").toUpperCase();
+            const setorItem = String(item['Setor'] || "").toUpperCase(); 
             
-            // VERIFICA SE O EQUIPAMENTO JÁ FOI ENCONTRADO
-            // Olha a Coluna K do Excel ou se ele já foi salvo na memória nesta sessão
             const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
             const jaEncontrado = (colunaK !== "") || !!memoriaRonda[tag];
 
-            // REGRA 1: Se o usuário estiver buscando ativamente por TAG/SN, mostra o equipamento 
-            // INDEPENDENTEMENTE de já ter sido encontrado ou não.
             if (termo.length >= 2) {
                 return (tag.includes(termo) || sn.includes(termo));
             }
             
-            // REGRA 2: Se estiver apenas navegando pela lista do Setor, 
-            // mostra APENAS os equipamentos que AINDA NÃO FORAM ENCONTRADOS (Pendentes)
             if (setorSel) {
                 return (setorItem === setorSel && !jaEncontrado);
             }
@@ -164,18 +159,21 @@
             return false;
         });
 
-        // Atualizei o texto caso a lista fique vazia para ficar mais claro
         container.innerHTML = filtrados.length ? '' : '<p class="text-green-600 text-sm text-center py-10 uppercase font-black">✨ Todos os equipamentos deste setor foram encontrados!</p>';
 
         filtrados.forEach(item => {
-            const tag = String(item['TAG'] || "");
-            const nome = String(item['Equipamento'] || "N/A");
-            const sn = String(item['Nº Série'] || "N/A");
-            const setorOriginal = String(item['Setor'] || "N/A"); // Coluna E
-            const inativo = String(item['Inativo'] || "").toUpperCase();
+            // ==========================================
+            // MAPEAMENTO EXATO DAS SUAS COLUNAS
+            // ==========================================
+            const tag = String(item['Tag'] || item['TAG'] || ""); // Coluna A
+            const nome = String(item['Equipamento'] || item['Equipmento'] || "N/A"); // Coluna B
+            const modelo = String(item['Modelo'] || "-").toUpperCase(); // Coluna C
+            const fabricante = String(item['Fabricante'] || "-").toUpperCase(); // Coluna D (Substitui Marca)
+            const sn = String(item['Numero de serie'] || item['Nº Série'] || "-").toUpperCase(); // Coluna F
+            const patrimonio = String(item['Patrimônio'] || item['Patrimônio'] || "-"); // Coluna G
             
-            const marca = item['Marca'] ? String(item['Marca']).toUpperCase() : '-';
-            const modelo = item['Modelo'] ? String(item['Modelo']).toUpperCase() : '-';
+            const setorOriginal = String(item['Setor'] || "N/A"); 
+            const inativo = String(item['Inativo'] || "").toUpperCase();
 
             const isAtivo = (inativo !== "SIM");
             const statusClass = isAtivo ? 'status-ativo' : 'status-inativo';
@@ -185,6 +183,7 @@
             const div = document.createElement('div');
             div.className = `p-4 border border-slate-200 rounded-lg shadow-sm mb-3 border-l-4 ${registroExistente ? 'border-l-green-500 bg-green-50/50' : 'border-l-blue-400 bg-white'}`;
             
+            // O visual do card foi atualizado para acomodar todos os seus dados
             div.innerHTML = `
                 <div class="flex justify-between items-start mb-3">
                     <div class="w-full pr-2">
@@ -192,18 +191,22 @@
                         
                         <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-md border border-slate-100">
                             <div>
-                                <p class="text-[9px] text-slate-500 uppercase font-bold">Patrimônio</p>
+                                <p class="text-[9px] text-slate-500 uppercase font-bold">TAG</p>
                                 <p class="text-xs font-black text-blue-900">${tag}</p>
+                            </div>
+                            <div>
+                                <p class="text-[9px] text-slate-500 uppercase font-bold">Patrimônio</p>
+                                <p class="text-xs font-black text-blue-900">${patrimonio}</p>
                             </div>
                             <div>
                                 <p class="text-[9px] text-slate-500 uppercase font-bold">Série (SN)</p>
                                 <p class="text-xs font-bold text-slate-700">${sn}</p>
                             </div>
                             <div>
-                                <p class="text-[9px] text-slate-500 uppercase font-bold">Marca</p>
-                                <p class="text-[10px] font-bold text-slate-700">${marca}</p>
+                                <p class="text-[9px] text-slate-500 uppercase font-bold">Fabricante</p>
+                                <p class="text-[10px] font-bold text-slate-700">${fabricante}</p>
                             </div>
-                            <div>
+                            <div class="col-span-2">
                                 <p class="text-[9px] text-slate-500 uppercase font-bold">Modelo</p>
                                 <p class="text-[10px] font-bold text-slate-700">${modelo}</p>
                             </div>
