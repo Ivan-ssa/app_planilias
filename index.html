@@ -2,97 +2,458 @@
 <html lang="pt-br">
 <head>
     <meta charset="UTF-8">
-    <title>Ronda de Equipamentos</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ronda hospitalar - Excel Integrado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#1e3a8a">
     <style>
-        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; }
-        table { width: 100%; border-collapse: collapse; background: white; }
-        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
-        th { background-color: #333; color: white; }
-        .vencido { background-color: #ffcccc; color: #cc0000; font-weight: bold; }
-        .sem-etiqueta { background-color: #fff3cd; color: #856404; font-weight: bold; }
-        .btn { padding: 8px 12px; margin-right: 5px; cursor: pointer; }
+        input { text-transform: uppercase; }
+        .status-ativo { background-color: #dcfce7; color: #166534; border: 1px solid #166534; }
+        .status-inativo { background-color: #fee2e2; color: #991b1b; border: 1px solid #991b1b; }
+        .etiqueta-vencida { background-color: #ffcccc !important; border-color: #cc0000 !important; color: #cc0000; }
+        .etiqueta-alerta { background-color: #fff3cd !important; border-color: #ffecb5 !important; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
     </style>
 </head>
-<body>
-    <h2>Ronda de Equipamentos - Controle de Etiquetas</h2>
-    
-    <div style="margin-bottom: 20px;">
-        <button class="btn" onclick="filtrar('todos')">Todos</button>
-        <button class="btn" onclick="filtrar('vencidos')">Vencidos</button>
-        <button class="btn" onclick="filtrar('sem-etiqueta')">Sem Etiqueta</button>
+<body class="bg-slate-100 p-2 sm:p-4 font-sans text-slate-800">
+    <div class="max-w-7xl mx-auto">
+        <!-- Cabeçalho -->
+        <div class="bg-white rounded-xl shadow-sm p-4 mb-4 border-b-4 border-blue-600 flex justify-between items-center flex-wrap gap-2">
+            <div>
+                <h1 class="text-xl font-bold text-blue-900 uppercase">Ronda Hospitalar</h1>
+                <p class="text-[10px] text-slate-400 font-bold uppercase tracking-tighter">Módulo Excel Integrado + Etiquetas</p>
+            </div>
+            <div class="flex gap-2 sm:gap-4 items-center flex-wrap">
+                <div id="progressoGeral" class="bg-indigo-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm transition-colors duration-300 hidden">Geral: 0%</div>
+                <div id="progressoSetor" class="bg-purple-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm hidden transition-colors duration-300">Setor: 0%</div>
+                <div id="contadorSessao" class="bg-green-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Sessão: 0</div>
+                <div id="contadorTotal" class="bg-blue-600 text-white px-4 py-1 rounded-full font-black text-xs shadow-sm">Total: 0</div>
+            </div>
+        </div>
+
+        <!-- Área de Importação -->
+        <div id="setup" class="bg-white p-4 rounded-xl shadow-sm mb-4 border border-blue-100">
+            <label class="text-[10px] font-bold text-blue-700 uppercase">1. Importar Planilha de Equipamentos (Excel .xlsx)</label>
+            <input type="file" id="arquivoExcel" accept=".xlsx, .xls" class="text-xs w-full bg-slate-50 p-2 border rounded mt-1 cursor-pointer">
+        </div>
+
+        <!-- Corpo do App (Oculto até carregar a planilha) -->
+        <div id="appBody" class="hidden">
+            <div class="bg-blue-900 p-4 rounded-t-xl shadow-lg flex flex-wrap gap-4 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Busca Global (TAG ou SN)</label>
+                    <input type="text" id="busca" placeholder="PROCURAR TAG..." class="w-full p-3 rounded-lg bg-white/10 border border-white/20 text-white placeholder:text-white/50 outline-none focus:bg-white focus:text-blue-900 transition-all">
+                </div>
+                <div class="flex-1 min-w-[200px]">
+                    <label class="text-[9px] text-white/70 font-bold uppercase">Filtrar Setor / Setor da Ronda Atual</label>
+                    <input type="text" id="filtroSetor" list="listaDeSetores" placeholder="DIGITE O SETOR DA RONDA..." class="w-full p-3 rounded-lg bg-white border-none font-bold text-blue-900 outline-none uppercase placeholder:text-slate-400">
+                    <datalist id="listaDeSetores"></datalist>
+                </div>
+                
+                <!-- Novos Botões de Filtro de Ronda (Vencidos / Sem Etiqueta) -->
+                <div class="flex gap-2 w-full sm:w-auto pt-2 sm:pt-0">
+                    <button onclick="filtrarStatusRonda('TODOS')" class="bg-white/20 hover:bg-white/30 text-white px-3 py-2 rounded text-[10px] font-black uppercase">Todos</button>
+                    <button onclick="filtrarStatusRonda('VENCIDOS')" class="bg-red-600 hover:bg-red-700 text-white px-3 py-2 rounded text-[10px] font-black uppercase">Vencidos</button>
+                    <button onclick="filtrarStatusRonda('SEM_ETIQUETA')" class="bg-amber-500 hover:bg-amber-600 text-white px-3 py-2 rounded text-[10px] font-black uppercase">Sem Etiqueta</button>
+                </div>
+
+                <button onclick="window.location.reload()" class="text-white/50 hover:text-white text-[10px] font-bold uppercase underline pb-3">Limpar</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-1">
+                <!-- Lado Esquerdo: Lista de Equipamentos -->
+                <div class="bg-white rounded-b-xl lg:rounded-bl-xl shadow-md p-4 border-x border-b">
+                    <h2 class="text-xs font-black text-slate-400 uppercase mb-4 tracking-widest flex items-center gap-2"> 🔍 Equipamentos Encontrados </h2>
+                    <div id="listaEquipamentos" class="space-y-3 max-h-[550px] overflow-y-auto pr-2">
+                        <p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione o setor da ronda para começar</p>
+                    </div>
+                </div>
+
+                <!-- Lado Direito: Resumo e Exportação -->
+                <div class="bg-slate-50 rounded-b-xl lg:rounded-br-xl shadow-md p-4 border-x border-b border-slate-200 flex flex-col">
+                    <h2 class="text-xs font-black text-green-600 uppercase mb-4 tracking-widest flex items-center gap-2"> ✅ Novos nesta Ronda </h2>
+                    <div id="listaColeta" class="space-y-2 flex-1 max-h-[480px] overflow-y-auto pr-2 mb-4">
+                        <p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Lista Vazia</p>
+                    </div>
+                    <button onclick="exportarDados()" class="w-full bg-green-600 hover:bg-green-700 text-white p-4 rounded-xl font-black shadow-lg transition-all active:scale-95 flex items-center justify-center gap-3 uppercase"> 
+                        📥 Exportar Planilha Atualizada (.xlsx) 
+                    </button>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <table id="tabelaEquipamentos">
-        <thead>
-            <tr>
-                <th>Equipamento</th>
-                <th>Calibração (MM/AAAA)</th>
-                <th>Preventiva (MM/AAAA)</th>
-                <th>Status</th>
-            </tr>
-        </thead>
-        <tbody>
-            <tr data-cal="08/2026" data-prev="08/2025">
-                <td>Monitor Multiparamétrico</td>
-                <td>08/2026</td>
-                <td>08/2025</td>
-                <td class="status"></td>
-            </tr>
-            <tr data-cal="" data-prev="01/2026">
-                <td>Bomba de Infusão</td>
-                <td></td>
-                <td>01/2026</td>
-                <td class="status"></td>
-            </tr>
-        </tbody>
-    </table>
+    <!-- Toast de Notificação -->
+    <div id="toast" class="fixed bottom-10 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-8 py-4 rounded-2xl shadow-2xl transform translate-y-32 opacity-0 transition-all duration-300 font-bold text-sm z-50"></div>
 
     <script>
-        function verificarStatus() {
-            const rows = document.querySelectorAll("#tabelaEquipamentos tbody tr");
+        let bancoDados = [];
+        let memoriaRonda = {};
+        let itensNovosSessao = [];
+        let filtroFocoStatus = 'TODOS';
+
+        // --- 1. LER O EXCEL ---
+        document.getElementById('arquivoExcel').addEventListener('change', function(e) {
+            if (!e.target.files[0]) return;
+            const reader = new FileReader();
+            reader.onload = function(event) {
+                try {
+                    const data = new Uint8Array(event.target.result);
+                    const workbook = XLSX.read(data, {type: 'array'});
+                    const nomePrimeiraAba = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[nomePrimeiraAba];
+                    bancoDados = XLSX.utils.sheet_to_json(worksheet, {defval: ""});
+                    document.getElementById('appBody').classList.remove('hidden');
+                    popularSetores();
+                    showToast("✅ PLANILHA CARREGADA", "bg-blue-600");
+                } catch(err) {
+                    alert("Erro ao ler o arquivo Excel!");
+                    console.error(err);
+                }
+            };
+            reader.readAsArrayBuffer(e.target.files[0]);
+        });
+
+        // --- 2. POPULAR DATALIST DE SETORES ---
+        function popularSetores() {
+            const datalist = document.getElementById('listaDeSetores');
+            datalist.innerHTML = '';
+            const setores = [...new Set(bancoDados.map(item => item['Setor']))].filter(Boolean).sort();
+            setores.forEach(setor => {
+                const opt = document.createElement('option');
+                opt.value = String(setor).toUpperCase();
+                datalist.appendChild(opt);
+            });
+        }
+
+        function filtrarStatusRonda(tipo) {
+            filtroFocoStatus = tipo;
+            renderizarLadoEsquerdo();
+        }
+
+        // Função auxiliar para checar se MM/AAAA está vencido em relação ao mês/ano atual (Agosto/2026)
+        function estaVencido(dataStr) {
+            if (!dataStr || dataStr.trim() === "") return false;
+            const partes = dataStr.split('/');
+            if (partes.length !== 2) return false;
+            const mes = parseInt(partes[0], 10);
+            const ano = parseInt(partes[1], 10);
+            
             const dataAtual = new Date();
             const mesAtual = dataAtual.getMonth() + 1;
             const anoAtual = dataAtual.getFullYear();
 
-            rows.forEach(row => {
-                const cal = row.getAttribute("data-cal");
-                const prev = row.getAttribute("data-prev");
-                let statusMsg = "Em dia";
-                let classe = "";
+            if (ano < anoAtual) return true;
+            if (ano === anoAtual && mes < mesAtual) return true;
+            return false;
+        }
 
-                // Regra: Vencido se for anterior a Agosto/2026 (considerando periodicidade anual)
-                const estaVencido = (data) => {
-                    if (!data) return false;
-                    const [mes, ano] = data.split('/').map(Number);
-                    if (ano < anoAtual) return true;
-                    if (ano === anoAtual && mes < mesAtual) return true;
-                    return false;
-                };
+        // --- 3. EXIBIR EQUIPAMENTOS NA TELA ---
+        function renderizarLadoEsquerdo() {
+            const container = document.getElementById('listaEquipamentos');
+            const termo = document.getElementById('busca').value.toUpperCase();
+            const setorSel = document.getElementById('filtroSetor').value.toUpperCase();
 
-                if (!cal || !prev) {
-                    statusMsg = "Sem etiqueta";
-                    classe = "sem-etiqueta";
-                } else if (estaVencido(cal) || estaVencido(prev)) {
-                    statusMsg = "Vencido";
-                    classe = "vencido";
+            if (termo.length < 2 && !setorSel) {
+                container.innerHTML = '<p class="text-slate-400 text-sm italic text-center py-20 uppercase font-bold opacity-50">Selecione o setor da ronda ou use a busca global</p>';
+                return;
+            }
+
+            const filtrados = bancoDados.filter(item => {
+                const tag = String(item['Tag'] || item['TAG'] || "").toUpperCase();
+                const sn = String(item['Numero de serie'] || item['Nº Série'] || "").toUpperCase();
+                const setorItem = String(item['Setor'] || "").toUpperCase();
+                const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+                const jaEncontrado = (colunaK !== "") || !!memoriaRonda[tag];
+
+                let atendeBusca = false;
+                if (termo.length >= 2) {
+                    atendeBusca = (tag.includes(termo) || sn.includes(termo));
+                } else if (setorSel) {
+                    atendeBusca = (setorItem === setorSel && !jaEncontrado);
                 }
 
-                row.querySelector(".status").textContent = statusMsg;
-                row.className = classe;
+                if (!atendeBusca) return false;
+
+                // Aplicação dos sub-filtros (Vencidos / Sem Etiqueta)
+                const reg = memoriaRonda[tag] || {};
+                const calVal = reg.CALIBRACAO !== undefined ? reg.CALIBRACAO : String(item['CALIBRACAO'] || item['Calibração'] || "");
+                const prevVal = reg.PREVENTIVA !== undefined ? reg.PREVENTIVA : String(item['PREVENTIVA'] || item['Preventiva'] || "");
+
+                const semEtiqueta = !calVal.trim() || !prevVal.trim();
+                const vencido = estaVencido(calVal) || estaVencido(prevVal);
+
+                if (filtroFocoStatus === 'VENCIDOS') return vencido;
+                if (filtroFocoStatus === 'SEM_ETIQUETA') return semEtiqueta;
+
+                return true;
+            });
+
+            container.innerHTML = filtrados.length ? '' : '<p class="text-green-600 text-sm text-center py-10 uppercase font-black">✨ Nenhum equipamento encontrado com estes critérios!</p>';
+
+            filtrados.forEach(item => {
+                const tag = String(item['Tag'] || item['TAG'] || "");
+                const nome = String(item['Equipamento'] || item['Equipmento'] || "N/A");
+                const modelo = String(item['Modelo'] || "-").toUpperCase();
+                const fabricante = String(item['Fabricante'] || "-").toUpperCase();
+                const sn = String(item['Numero de serie'] || item['Nº Série'] || "-").toUpperCase();
+                const patrimonio = String(item['Patrimônio'] || "-");
+                const setorOriginal = String(item['Setor'] || "N/A");
+                const inativo = String(item['Inativo'] || "").toUpperCase();
+                const isAtivo = (inativo !== "SIM");
+                const statusClass = isAtivo ? 'status-ativo' : 'status-inativo';
+                const statusTexto = isAtivo ? 'ATIVO' : 'INATIVO';
+
+                const registroExistente = memoriaRonda[tag];
+                
+                // Pega valores salvos ou da planilha original
+                const valCal = registroExistente ? registroExistente.CALIBRACAO : (item['CALIBRACAO'] || item['Calibração'] || "");
+                const valPrev = registroExistente ? registroExistente.PREVENTIVA : (item['PREVENTIVA'] || item['Preventiva'] || "");
+                const valLocal = registroExistente ? registroExistente.LOCALIZACAO : "";
+
+                const calVencida = estaVencido(valCal);
+                const prevVencida = estaVencido(valPrev);
+
+                const div = document.createElement('div');
+                div.className = `p-4 border rounded-lg shadow-sm mb-3 border-l-4 ${registroExistente ? 'border-l-green-500 bg-green-50/50' : 'border-l-blue-400 bg-white'}`;
+                
+                div.innerHTML = `
+                    <div class="flex justify-between items-start mb-3">
+                        <div class="w-full pr-2">
+                            <p class="text-sm font-black text-slate-800 leading-tight mb-2">${nome.toUpperCase()}</p>
+                            <div class="grid grid-cols-2 gap-2 bg-slate-50 p-2 rounded-md border border-slate-100">
+                                <div>
+                                    <p class="text-[9px] text-slate-500 uppercase font-bold">TAG</p>
+                                    <p class="text-xs font-black text-blue-900">${tag}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-500 uppercase font-bold">Patrimônio</p>
+                                    <p class="text-xs font-black text-blue-900">${patrimonio}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-500 uppercase font-bold">Série (SN)</p>
+                                    <p class="text-xs font-bold text-slate-700">${sn}</p>
+                                </div>
+                                <div>
+                                    <p class="text-[9px] text-slate-500 uppercase font-bold">Fabricante</p>
+                                    <p class="text-[10px] font-bold text-slate-700">${fabricante}</p>
+                                </div>
+                                <div class="col-span-2">
+                                    <p class="text-[9px] text-slate-500 uppercase font-bold">Modelo</p>
+                                    <p class="text-[10px] font-bold text-slate-700">${modelo}</p>
+                                </div>
+                            </div>
+                            <p class="text-[9px] text-blue-500 font-bold uppercase mt-2">📍 SETOR CADASTRO: ${setorOriginal}</p>
+                        </div>
+                        <span class="text-[8px] px-2 py-0.5 rounded-full font-black uppercase ${statusClass}">${statusTexto}</span>
+                    </div>
+
+                    <!-- Campos Adicionados: Calibração, Preventiva e Localização -->
+                    <div class="grid grid-cols-2 gap-2 mb-2">
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-600 uppercase">Etiqueta Calibração (MM/AAAA)</label>
+                            <input type="text" id="in-cal-${tag}" placeholder="MM/AAAA" maxlength="7" value="${valCal}" class="w-full p-2 border rounded text-xs font-bold uppercase ${calVencida ? 'etiqueta-vencida' : (!valCal ? 'etiqueta-alerta' : 'bg-white')}">
+                        </div>
+                        <div>
+                            <label class="text-[9px] font-bold text-slate-600 uppercase">Etiqueta Preventiva (MM/AAAA)</label>
+                            <input type="text" id="in-prev-${tag}" placeholder="MM/AAAA" maxlength="7" value="${valPrev}" class="w-full p-2 border rounded text-xs font-bold uppercase ${prevVencida ? 'etiqueta-vencida' : (!valPrev ? 'etiqueta-alerta' : 'bg-white')}">
+                        </div>
+                    </div>
+
+                    <div class="flex gap-2 mt-2"> 
+                        <input type="text" id="in-local-${tag}" placeholder="${valLocal ? 'LOCAL: ' + valLocal : 'LOCALIZAÇÃO (EX: LEITO 10)...'}" value="${valLocal}" class="flex-1 p-2 border rounded text-xs font-bold outline-none focus:border-green-500 bg-white placeholder:text-slate-300"> 
+                        <button onclick="confirmarAcao('${tag}', '${setorOriginal.replace(/'/g, "\\'")}')" class="bg-blue-600 text-white px-4 py-2 rounded text-[10px] font-black hover:bg-blue-700 transition-all"> SALVAR </button> 
+                    </div> 
+                    ${registroExistente ? `<p class="text-[8px] text-green-600 font-bold mt-2">✔️ REGISTRADO NO SETOR: ${registroExistente.SETOR_ATUAL}</p>` : ''} 
+                `;
+                container.appendChild(div);
             });
         }
 
-        function filtrar(tipo) {
-            const rows = document.querySelectorAll("#tabelaEquipamentos tbody tr");
-            rows.forEach(row => {
-                if (tipo === 'todos') row.style.display = "";
-                else if (tipo === 'vencidos' && row.className !== 'vencido') row.style.display = "none";
-                else if (tipo === 'sem-etiqueta' && row.className !== 'sem-etiqueta') row.style.display = "none";
-                else row.style.display = "";
+        // --- 4. SALVAR AÇÃO E ATUALIZAR INTERFACE ---
+        function confirmarAcao(tag, setorOriginal) {
+            const setorFiltroAtual = document.getElementById('filtroSetor').value.toUpperCase();
+            if (!setorFiltroAtual) {
+                showToast("⚠️ SELECIONE O SETOR DA RONDA NO TOPO DA PÁGINA!", "bg-red-500");
+                document.getElementById('filtroSetor').focus();
+                return;
+            }
+
+            const inputLocalizacao = document.getElementById(`in-local-${tag}`);
+            const inputCalibracao = document.getElementById(`in-cal-${tag}`);
+            const inputPreventiva = document.getElementById(`in-prev-${tag}`);
+
+            const localizacaoValor = inputLocalizacao.value.trim().toUpperCase();
+            const calValor = inputCalibracao.value.trim().toUpperCase();
+            const prevValor = inputPreventiva.value.trim().toUpperCase();
+            const dataHoje = new Date().toLocaleDateString('pt-BR');
+
+            const registro = {
+                TAG: tag,
+                SETOR_ORIGINAL: setorOriginal,
+                SETOR_ATUAL: setorFiltroAtual,
+                LOCALIZACAO: localizacaoValor,
+                CALIBRACAO: calValor,
+                PREVENTIVA: prevValor,
+                DATA: dataHoje
+            };
+
+            memoriaRonda[tag] = registro;
+            itensNovosSessao = itensNovosSessao.filter(i => i.TAG !== tag);
+            itensNovosSessao.unshift(registro);
+
+            showToast(`✅ ${tag} REGISTRADO`, "bg-slate-800");
+            atualizarContadores();
+            renderizarLogSessao();
+            renderizarLadoEsquerdo();
+        }
+
+        function renderizarLogSessao() {
+            const container = document.getElementById('listaColeta');
+            container.innerHTML = itensNovosSessao.length ? '' : '<p class="text-slate-400 text-sm text-center py-20 uppercase font-bold opacity-30 italic">Nenhum item adicionado ainda.</p>';
+            itensNovosSessao.forEach(item => {
+                const div = document.createElement('div');
+                div.className = "p-3 bg-white border border-slate-200 rounded-lg shadow-sm flex justify-between items-center mb-2";
+                div.innerHTML = ` 
+                    <div class="flex-1"> 
+                        <span class="text-[9px] font-black text-blue-800 uppercase bg-blue-50 px-2 py-0.5 rounded">${item.TAG}</span> 
+                        <p class="text-[10px] font-bold text-slate-700 uppercase mt-1">ENCONTRADO: ${item.SETOR_ATUAL}</p> 
+                        ${item.LOCALIZACAO ? `<p class="text-[9px] font-bold text-slate-500 uppercase">LOCAL: ${item.LOCALIZACAO}</p>` : ''}
+                        <p class="text-[8px] text-slate-500 uppercase">CAL: ${item.CALIBRACAO || 'N/I'} | PREV: ${item.PREVENTIVA || 'N/I'}</p>
+                    </div> 
+                    <span class="text-[8px] text-slate-400 font-bold">${item.DATA}</span> 
+                `;
+                container.appendChild(div);
             });
         }
 
-        verificarStatus();
+        function atualizarContadores() {
+            document.getElementById('contadorSessao').textContent = `Sessão: ${itensNovosSessao.length}`;
+            document.getElementById('contadorTotal').textContent = `Total: ${Object.keys(memoriaRonda).length}`;
+
+            const totalGeral = bancoDados.length;
+            const divProgressoGeral = document.getElementById('progressoGeral');
+            if (totalGeral > 0) {
+                const feitosGeral = bancoDados.filter(item => {
+                    const tag = String(item['TAG'] || item['Tag'] || "");
+                    const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+                    return (colunaK !== "") || !!memoriaRonda[tag];
+                }).length;
+                const porcentagemGeral = Math.round((feitosGeral / totalGeral) * 100);
+                divProgressoGeral.textContent = `Geral: ${feitosGeral} de ${totalGeral} (${porcentagemGeral}%)`;
+                divProgressoGeral.classList.remove('hidden');
+            }
+
+            const setorSelecionado = document.getElementById('filtroSetor').value.toUpperCase();
+            const divProgresso = document.getElementById('progressoSetor');
+            if (!setorSelecionado) {
+                divProgresso.classList.add('hidden');
+                return;
+            }
+
+            const equipamentosDoSetorOriginal = bancoDados.filter(item => String(item['Setor'] || "").toUpperCase() === setorSelecionado);
+            const totalNoSetor = equipamentosDoSetorOriginal.length;
+            if (totalNoSetor > 0) {
+                const feitosNoSetor = equipamentosDoSetorOriginal.filter(item => {
+                    const tag = String(item['TAG'] || item['Tag'] || "");
+                    const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+                    return (colunaK !== "") || !!memoriaRonda[tag];
+                }).length;
+                const porcentagemSetor = Math.round((feitosNoSetor / totalNoSetor) * 100);
+                divProgresso.textContent = `Setor: ${feitosNoSetor} de ${totalNoSetor} (${porcentagemSetor}%)`;
+                divProgresso.classList.remove('hidden');
+            } else {
+                divProgresso.classList.add('hidden');
+            }
+        }
+
+        function showToast(msg, cor) {
+            const t = document.getElementById('toast');
+            t.textContent = msg;
+            t.className = `fixed bottom-10 left-1/2 -translate-x-1/2 text-white px-8 py-4 rounded-2xl shadow-2xl transition-all duration-300 font-black text-sm z-50 translate-y-0 opacity-100 ${cor}`;
+            setTimeout(() => {
+                t.classList.replace('translate-y-0', 'translate-y-32');
+                t.classList.replace('opacity-100', 'opacity-0');
+            }, 2500);
+        }
+
+        document.getElementById('busca').addEventListener('input', renderizarLadoEsquerdo);
+        document.getElementById('filtroSetor').addEventListener('input', () => {
+            renderizarLadoEsquerdo();
+            atualizarContadores();
+        });
+
+        // --- 5. EXPORTAR EXCEL (COM DASHBOARD) ---
+        function exportarDados() {
+            if (Object.keys(memoriaRonda).length === 0) {
+                return showToast("❌ NENHUM DADO ATUALIZADO!", "bg-orange-500");
+            }
+
+            let totalGeral = 0;
+            let feitosGeral = 0;
+            const contagemPorSetor = {};
+
+            const dadosExportacao = bancoDados.map(item => {
+                const tag = String(item['TAG'] || item['Tag'] || "");
+                const setor = String(item['Setor'] || "N/A").toUpperCase();
+                const colunaK = String(item['SETOR ATUAL'] || item['Setor Atual'] || "").trim();
+                const salvoNestaSessao = !!memoriaRonda[tag];
+                const feito = (colunaK !== "") || salvoNestaSessao;
+
+                totalGeral++;
+                if (feito) feitosGeral++;
+                if (!contagemPorSetor[setor]) {
+                    contagemPorSetor[setor] = { total: 0, feitos: 0 };
+                }
+                contagemPorSetor[setor].total++;
+                if (feito) contagemPorSetor[setor].feitos++;
+
+                if (salvoNestaSessao) {
+                    return {
+                        ...item,
+                        'SETOR ATUAL': memoriaRonda[tag].SETOR_ATUAL,
+                        'LOCALIZAÇÃO': memoriaRonda[tag].LOCALIZACAO,
+                        'CALIBRACAO': memoriaRonda[tag].CALIBRACAO,
+                        'PREVENTIVA': memoriaRonda[tag].PREVENTIVA,
+                        'DATA': memoriaRonda[tag].DATA
+                    };
+                }
+                return item;
+            });
+
+            const linhasDashboard = [];
+            const porcentagemGeral = totalGeral > 0 ? Math.round((feitosGeral / totalGeral) * 100) : 0;
+            
+            linhasDashboard.push({ "MÉTRICA / SETOR": "📊 PROGRESSO GERAL DO HOSPITAL", "TOTAL EQUIPAMENTOS": totalGeral, "ENCONTRADOS": feitosGeral, "PORCENTAGEM (%)": `${porcentagemGeral}%` });
+            linhasDashboard.push({ "MÉTRICA / SETOR": "", "TOTAL EQUIPAMENTOS": "", "ENCONTRADOS": "", "PORCENTAGEM (%)": "" });
+            linhasDashboard.push({ "MÉTRICA / SETOR": "--- DETALHAMENTO POR SETOR ---", "TOTAL EQUIPAMENTOS": "", "ENCONTRADOS": "", "PORCENTAGEM (%)": "" });
+
+            Object.keys(contagemPorSetor).sort().forEach(setor => {
+                const stats = contagemPorSetor[setor];
+                const perc = stats.total > 0 ? Math.round((stats.feitos / stats.total) * 100) : 0;
+                linhasDashboard.push({
+                    "MÉTRICA / SETOR": setor,
+                    "TOTAL EQUIPAMENTOS": stats.total,
+                    "ENCONTRADOS": stats.feitos,
+                    "PORCENTAGEM (%)": `${perc}%`
+                });
+            });
+
+            const novoWorkbook = XLSX.utils.book_new();
+            
+            const worksheetDash = XLSX.utils.json_to_sheet(linhasDashboard);
+            worksheetDash['!cols'] = [{wch: 40}, {wch: 20}, {wch: 15}, {wch: 15}];
+            XLSX.utils.book_append_sheet(novoWorkbook, worksheetDash, "Dashboard_Resumo");
+
+            const worksheetEquipamentos = XLSX.utils.json_to_sheet(dadosExportacao);
+            XLSX.utils.book_append_sheet(novoWorkbook, worksheetEquipamentos, "Base_Atualizada");
+
+            XLSX.writeFile(novoWorkbook, `ronda_hospitalar_${new Date().toISOString().slice(0,10)}.xlsx`);
+            showToast("📥 EXCEL COM DASHBOARD GERADO!", "bg-green-600");
+        }
     </script>
 </body>
 </html>
