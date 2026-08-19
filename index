@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <title>Ronda de Equipamentos</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background-color: #f4f4f9; }
+        table { width: 100%; border-collapse: collapse; background: white; }
+        th, td { border: 1px solid #ddd; padding: 10px; text-align: left; }
+        th { background-color: #333; color: white; }
+        .vencido { background-color: #ffcccc; color: #cc0000; font-weight: bold; }
+        .sem-etiqueta { background-color: #fff3cd; color: #856404; font-weight: bold; }
+        .btn { padding: 8px 12px; margin-right: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h2>Ronda de Equipamentos - Controle de Etiquetas</h2>
+    
+    <div style="margin-bottom: 20px;">
+        <button class="btn" onclick="filtrar('todos')">Todos</button>
+        <button class="btn" onclick="filtrar('vencidos')">Vencidos</button>
+        <button class="btn" onclick="filtrar('sem-etiqueta')">Sem Etiqueta</button>
+    </div>
+
+    <table id="tabelaEquipamentos">
+        <thead>
+            <tr>
+                <th>Equipamento</th>
+                <th>Calibração (MM/AAAA)</th>
+                <th>Preventiva (MM/AAAA)</th>
+                <th>Status</th>
+            </tr>
+        </thead>
+        <tbody>
+            <tr data-cal="08/2026" data-prev="08/2025">
+                <td>Monitor Multiparamétrico</td>
+                <td>08/2026</td>
+                <td>08/2025</td>
+                <td class="status"></td>
+            </tr>
+            <tr data-cal="" data-prev="01/2026">
+                <td>Bomba de Infusão</td>
+                <td></td>
+                <td>01/2026</td>
+                <td class="status"></td>
+            </tr>
+        </tbody>
+    </table>
+
+    <script>
+        function verificarStatus() {
+            const rows = document.querySelectorAll("#tabelaEquipamentos tbody tr");
+            const dataAtual = new Date();
+            const mesAtual = dataAtual.getMonth() + 1;
+            const anoAtual = dataAtual.getFullYear();
+
+            rows.forEach(row => {
+                const cal = row.getAttribute("data-cal");
+                const prev = row.getAttribute("data-prev");
+                let statusMsg = "Em dia";
+                let classe = "";
+
+                // Regra: Vencido se for anterior a Agosto/2026 (considerando periodicidade anual)
+                const estaVencido = (data) => {
+                    if (!data) return false;
+                    const [mes, ano] = data.split('/').map(Number);
+                    if (ano < anoAtual) return true;
+                    if (ano === anoAtual && mes < mesAtual) return true;
+                    return false;
+                };
+
+                if (!cal || !prev) {
+                    statusMsg = "Sem etiqueta";
+                    classe = "sem-etiqueta";
+                } else if (estaVencido(cal) || estaVencido(prev)) {
+                    statusMsg = "Vencido";
+                    classe = "vencido";
+                }
+
+                row.querySelector(".status").textContent = statusMsg;
+                row.className = classe;
+            });
+        }
+
+        function filtrar(tipo) {
+            const rows = document.querySelectorAll("#tabelaEquipamentos tbody tr");
+            rows.forEach(row => {
+                if (tipo === 'todos') row.style.display = "";
+                else if (tipo === 'vencidos' && row.className !== 'vencido') row.style.display = "none";
+                else if (tipo === 'sem-etiqueta' && row.className !== 'sem-etiqueta') row.style.display = "none";
+                else row.style.display = "";
+            });
+        }
+
+        verificarStatus();
+    </script>
+</body>
+</html>
